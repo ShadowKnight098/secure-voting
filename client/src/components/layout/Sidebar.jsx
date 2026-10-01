@@ -1,6 +1,6 @@
 import React from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Vote, LogOut, ShieldCheck, X } from 'lucide-react';
+import { LayoutDashboard, Vote, Users, LogOut, ShieldCheck, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
 export const Sidebar = ({ isOpen, onClose }) => {
@@ -10,6 +10,7 @@ export const Sidebar = ({ isOpen, onClose }) => {
   const links = [
     { to: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
     { to: '/admin/elections', icon: Vote, label: 'Elections' },
+    { to: '/admin/voters', icon: Users, label: 'Voters' },
   ];
 
   const sidebarContent = (

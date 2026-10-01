@@ -10,6 +10,9 @@ export const getStats = (req, res) => {
     
     const totalCandidates = db.prepare('SELECT COUNT(*) as count FROM candidates').get().count;
     const totalVoters = db.prepare('SELECT COUNT(*) as count FROM voters').get().count;
+    const verifiedVoters = db.prepare('SELECT COUNT(*) as count FROM voters WHERE is_verified = 1').get().count;
+    const pendingVoters = db.prepare('SELECT COUNT(*) as count FROM voters WHERE is_verified = 0').get().count;
+    const votedCount = db.prepare('SELECT COUNT(*) as count FROM voters WHERE has_voted = 1').get().count;
 
     const recentElectionsSql = `
       SELECT e.id, e.title, e.status, e.start_date, e.end_date, 
@@ -27,6 +30,9 @@ export const getStats = (req, res) => {
       completedElections,
       totalCandidates,
       totalVoters,
+      verifiedVoters,
+      pendingVoters,
+      votedCount,
       recentElections
     };
 
