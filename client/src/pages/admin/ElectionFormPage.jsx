@@ -36,8 +36,8 @@ export const ElectionFormPage = () => {
           setFormData({
             title: data.title || '',
             description: data.description || '',
-            startDate: formatDate(data.startDate),
-            endDate: formatDate(data.endDate),
+            startDate: formatDate(data.startDate || data.start_date),
+            endDate: formatDate(data.endDate || data.end_date),
             status: data.status || 'upcoming'
           });
         } catch (err) {
@@ -58,19 +58,33 @@ export const ElectionFormPage = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setSubmitting(true);
     
+    if (!formData.title.trim()) {
+      toast.error('Election title is required');
+      return;
+    }
+    if (!formData.startDate) {
+      toast.error('Start date is required');
+      return;
+    }
+    if (!formData.endDate) {
+      toast.error('End date is required');
+      return;
+    }
     if (new Date(formData.startDate) > new Date(formData.endDate)) {
       toast.error('End date must be on or after start date');
-      setSubmitting(false);
       return;
     }
 
+    setSubmitting(true);
+
     try {
       const payload = {
-        ...formData,
-        startDate: new Date(formData.startDate).toISOString(),
-        endDate: new Date(formData.endDate).toISOString(),
+        title: formData.title.trim(),
+        description: formData.description.trim(),
+        startDate: formData.startDate,
+        endDate: formData.endDate,
+        status: formData.status
       };
 
       if (isEdit) {

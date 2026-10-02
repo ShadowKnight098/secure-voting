@@ -64,13 +64,15 @@ export const getById = (req, res) => {
 
 export const create = (req, res) => {
   try {
-    const { title, description, start_date, end_date, status } = req.body;
+    const { title, description, start_date, end_date, status, startDate, endDate } = req.body;
+    const finalStart = start_date || startDate;
+    const finalEnd = end_date || endDate;
     
-    if (!title || !start_date || !end_date) {
-      return errorResponse(res, 'Title, start_date, and end_date are required', 400);
+    if (!title || !finalStart || !finalEnd) {
+      return errorResponse(res, 'Title, start date, and end date are required', 400);
     }
 
-    const created_by = req.user.id;
+    const created_by = req.user?.id || 1;
     
     const sql = `
       INSERT INTO elections (title, description, start_date, end_date, status, created_by)
@@ -80,8 +82,8 @@ export const create = (req, res) => {
     const result = db.prepare(sql).run(
       title, 
       description || null, 
-      start_date, 
-      end_date, 
+      finalStart, 
+      finalEnd, 
       status || 'upcoming', 
       created_by
     );
@@ -95,7 +97,9 @@ export const create = (req, res) => {
 export const update = (req, res) => {
   try {
     const id = req.params.id;
-    const { title, description, start_date, end_date, status } = req.body;
+    const { title, description, start_date, end_date, status, startDate, endDate } = req.body;
+    const finalStart = start_date || startDate;
+    const finalEnd = end_date || endDate;
     
     const existing = db.prepare('SELECT * FROM elections WHERE id = ?').get(id);
     if (!existing) {
@@ -113,7 +117,7 @@ export const update = (req, res) => {
       WHERE id = ?
     `;
 
-    db.prepare(sql).run(title, description, start_date, end_date, status, id);
+    db.prepare(sql).run(title, description, finalStart, finalEnd, status, id);
 
     return successResponse(res, null, 'Election updated successfully');
   } catch (error) {
