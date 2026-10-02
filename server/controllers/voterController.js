@@ -1,11 +1,13 @@
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
+import fs from 'fs';
+import path from 'path';
 import db from '../config/db.js';
 import { successResponse, errorResponse } from '../utils/helpers.js';
 
 export const register = async (req, res) => {
   try {
-    const { full_name, email, phone, voter_id_number, password, election_id } = req.body;
+    const { full_name, email, phone, voter_id_number, password, election_id, face_descriptor, face_photo } = req.body;
 
     if (!full_name || !email || !voter_id_number || !password || !election_id) {
       return errorResponse(res, 'Full name, email, voter ID number, password, and election are required', 400);
@@ -40,6 +42,39 @@ export const register = async (req, res) => {
     const result = stmt.run(full_name, email, phone || null, voter_id_number, passwordHash, election_id);
     const voterId = result.lastInsertRowid;
 
+    // Handle facial biometric data enrollment
+    let savedPhotoUrl = null;
+    if (face_photo) {
+      try {
+        const base64Data = face_photo.replace(/^data:image\/\w+;base64,/, '');
+        const filename = `face_${voterId}_${Date.now()}.jpg`;
+        const facesDir = path.join(process.cwd(), 'uploads', 'faces');
+        if (!fs.existsSync(facesDir)) {
+          fs.mkdirSync(facesDir, { recursive: true });
+        }
+        const filePath = path.join(facesDir, filename);
+        fs.writeFileSync(filePath, Buffer.from(base64Data, 'base64'));
+        savedPhotoUrl = `/uploads/faces/${filename}`;
+      } catch (imgErr) {
+        console.error('Error saving face photo:', imgErr);
+      }
+    }
+
+    if (face_descriptor || savedPhotoUrl) {
+      try {
+        const descriptorStr = face_descriptor 
+          ? (typeof face_descriptor === 'string' ? face_descriptor : JSON.stringify(face_descriptor))
+          : null;
+        
+        db.prepare(`
+          INSERT INTO face_data (voter_id, face_descriptor, photo_url)
+          VALUES (?, ?, ?)
+        `).run(voterId, descriptorStr, savedPhotoUrl);
+      } catch (faceErr) {
+        console.error('Error inserting face_data:', faceErr);
+      }
+    }
+
     const secret = process.env.JWT_SECRET || 'voting-system-secret-key-2024';
     const token = jwt.sign(
       { id: voterId, voter_id_number, role: 'voter' },
@@ -57,10 +92,12 @@ export const register = async (req, res) => {
       is_verified: 0,
       election_id,
       election_title: election.title,
-      election_status: election.status
+      election_status: election.status,
+      has_face_data: face_descriptor ? 1 : 0,
+      photo_url: savedPhotoUrl
     };
 
-    return successResponse(res, { token, voter: voterData }, 'Voter registered successfully. Pending verification.', 201);
+    return successResponse(res, { token, voter: voterData }, 'Voter registered and biometric data enrolled successfully.', 201);
   } catch (error) {
     return errorResponse(res, 'Failed to register voter', 500, error);
   }
@@ -76,9 +113,12 @@ export const login = async (req, res) => {
 
     // Find voter by voter_id_number or email
     const voter = db.prepare(`
-      SELECT v.*, e.title as election_title, e.status as election_status, e.start_date, e.end_date
+      SELECT v.*, e.title as election_title, e.status as election_status, e.start_date, e.end_date,
+             fd.photo_url as face_photo_url,
+             CASE WHEN fd.id IS NOT NULL THEN 1 ELSE 0 END as has_face_data
       FROM voters v
       LEFT JOIN elections e ON v.election_id = e.id
+      LEFT JOIN face_data fd ON fd.voter_id = v.id
       WHERE v.voter_id_number = ? OR v.email = ?
     `).get(identifier, identifier);
 
@@ -110,9 +150,12 @@ export const getProfile = (req, res) => {
   try {
     const voter = db.prepare(`
       SELECT v.id, v.full_name, v.email, v.phone, v.voter_id_number, v.has_voted, v.is_verified, v.election_id, v.created_at,
-             e.title as election_title, e.description as election_description, e.status as election_status, e.start_date, e.end_date
+             e.title as election_title, e.description as election_description, e.status as election_status, e.start_date, e.end_date,
+             fd.photo_url as face_photo_url,
+             CASE WHEN fd.id IS NOT NULL THEN 1 ELSE 0 END as has_face_data
       FROM voters v
       LEFT JOIN elections e ON v.election_id = e.id
+      LEFT JOIN face_data fd ON fd.voter_id = v.id
       WHERE v.id = ?
     `).get(req.user.id);
 

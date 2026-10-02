@@ -39,11 +39,14 @@ export const getAll = (req, res) => {
 
     const sql = `
       SELECT v.id, v.full_name, v.email, v.phone, v.voter_id_number, v.has_voted, v.is_verified, v.election_id, v.created_at,
-             e.title as election_title, e.status as election_status
+             e.title as election_title, e.status as election_status,
+             fd.photo_url as face_photo_url,
+             CASE WHEN fd.id IS NOT NULL THEN 1 ELSE 0 END as has_face_data
       FROM voters v
       LEFT JOIN elections e ON v.election_id = e.id
-      ${whereClause}
-      ORDER BY v.created_at DESC
+      LEFT JOIN face_data fd ON fd.voter_id = v.id
+      ${whereClause} 
+      ORDER BY v.created_at DESC 
       LIMIT ? OFFSET ?
     `;
 
@@ -63,9 +66,12 @@ export const getById = (req, res) => {
     const id = req.params.id;
     const sql = `
       SELECT v.id, v.full_name, v.email, v.phone, v.voter_id_number, v.has_voted, v.is_verified, v.election_id, v.created_at,
-             e.title as election_title, e.status as election_status
+             e.title as election_title, e.status as election_status,
+             fd.photo_url as face_photo_url,
+             CASE WHEN fd.id IS NOT NULL THEN 1 ELSE 0 END as has_face_data
       FROM voters v
       LEFT JOIN elections e ON v.election_id = e.id
+      LEFT JOIN face_data fd ON fd.voter_id = v.id
       WHERE v.id = ?
     `;
     const voter = db.prepare(sql).get(id);

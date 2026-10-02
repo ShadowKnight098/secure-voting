@@ -158,6 +158,9 @@ export const VotersPage = () => {
     }
   };
 
+  // Photo Preview State
+  const [photoPreview, setPhotoPreview] = useState(null);
+
   return (
     <div className="space-y-6 animate-fade-in text-ink">
       {/* Header */}
@@ -165,7 +168,7 @@ export const VotersPage = () => {
         <div>
           <h2 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">Voter directory</h2>
           <p className="text-ink/70 font-medium text-sm mt-1">
-            Manage voter registrations, approve verifications, and track participation.
+            Manage voter registrations, review facial biometrics, and approve verifications.
           </p>
         </div>
         {/* One Main Pink Action */}
@@ -249,6 +252,7 @@ export const VotersPage = () => {
               <thead>
                 <tr className="bg-lavender border-b-2 border-ink text-xs font-extrabold uppercase text-ink tracking-wider">
                   <th className="py-3.5 px-4">Voter Identity</th>
+                  <th className="py-3.5 px-4">Biometrics</th>
                   <th className="py-3.5 px-4">Voter ID</th>
                   <th className="py-3.5 px-4">Assigned Election</th>
                   <th className="py-3.5 px-4 text-center">Verification Status</th>
@@ -260,6 +264,7 @@ export const VotersPage = () => {
                 {voters.map((voter) => {
                   const isVerified = voter.is_verified === 1;
                   const hasVoted = voter.has_voted === 1;
+                  const hasFace = voter.has_face_data === 1 || !!voter.face_photo_url;
                   return (
                     <tr
                       key={voter.id}
@@ -267,11 +272,44 @@ export const VotersPage = () => {
                     >
                       {/* Name & Contact */}
                       <td className="py-4 px-4">
-                        <div className="font-bold text-ink text-base">{voter.full_name}</div>
-                        <div className="text-xs text-ink/75 font-medium flex items-center gap-2 mt-0.5">
-                          <span className="truncate max-w-[180px]">{voter.email}</span>
-                          {voter.phone && <span>• {voter.phone}</span>}
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-[10px] border-2 border-ink bg-violet text-white font-extrabold flex items-center justify-center shadow-neo-sm flex-shrink-0 overflow-hidden">
+                            {voter.face_photo_url ? (
+                              <img 
+                                src={voter.face_photo_url} 
+                                alt={voter.full_name} 
+                                className="w-full h-full object-cover cursor-pointer"
+                                onClick={() => setPhotoPreview({ url: voter.face_photo_url, name: voter.full_name })}
+                              />
+                            ) : (
+                              <span>{voter.full_name.charAt(0).toUpperCase()}</span>
+                            )}
+                          </div>
+                          <div>
+                            <div className="font-bold text-ink text-base">{voter.full_name}</div>
+                            <div className="text-xs text-ink/75 font-medium flex items-center gap-2 mt-0.5">
+                              <span className="truncate max-w-[180px]">{voter.email}</span>
+                              {voter.phone && <span>• {voter.phone}</span>}
+                            </div>
+                          </div>
                         </div>
+                      </td>
+
+                      {/* Biometric Status */}
+                      <td className="py-4 px-4">
+                        {hasFace ? (
+                          <button
+                            onClick={() => voter.face_photo_url && setPhotoPreview({ url: voter.face_photo_url, name: voter.full_name })}
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-[8px] bg-mint text-ink font-bold text-xs border-2 border-ink shadow-neo-sm hover:-translate-y-0.5 transition-all"
+                            title="Click to view enrolled face scan"
+                          >
+                            <span>📸</span> Enrolled
+                          </button>
+                        ) : (
+                          <span className="inline-block px-2.5 py-1 rounded-[8px] bg-surface text-ink/60 font-bold text-xs border-2 border-ink/40">
+                            No Scan
+                          </span>
+                        )}
                       </td>
 
                       {/* Voter ID */}
@@ -490,6 +528,33 @@ export const VotersPage = () => {
         message={`Are you sure you want to delete "${deleteDialog.name}"? This voter will not be able to participate in the election.`}
         isLoading={isDeleting}
       />
+
+      {/* Enrolled Face Photo Preview Modal */}
+      <Modal
+        isOpen={!!photoPreview}
+        onClose={() => setPhotoPreview(null)}
+        title={`Biometric Scan: ${photoPreview?.name || 'Voter'}`}
+      >
+        <div className="text-center space-y-4">
+          <div className="w-full max-w-sm mx-auto aspect-square rounded-[14px] border-2 border-ink overflow-hidden shadow-neo bg-slate-900">
+            {photoPreview?.url && (
+              <img
+                src={photoPreview.url}
+                alt={photoPreview.name}
+                className="w-full h-full object-cover"
+              />
+            )}
+          </div>
+          <div className="p-3 bg-mint/40 border-2 border-ink rounded-[10px] text-xs font-bold text-ink">
+            ✓ 128-dimensional biometric descriptor is securely linked in the database
+          </div>
+          <div className="flex justify-end pt-2">
+            <Button variant="secondary" onClick={() => setPhotoPreview(null)}>
+              Close preview
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </div>
   );
 };

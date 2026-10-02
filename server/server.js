@@ -2,6 +2,7 @@ import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import path from 'path';
+import fs from 'fs';
 
 // Routes
 import authRoutes from './routes/authRoutes.js';
@@ -14,15 +15,25 @@ import { errorHandler } from './middleware/errorHandler.js';
 
 dotenv.config();
 
+// Ensure upload directories exist
+const uploadDirs = ['uploads', 'uploads/candidates', 'uploads/faces'];
+uploadDirs.forEach(dir => {
+  const fullPath = path.join(process.cwd(), dir);
+  if (!fs.existsSync(fullPath)) {
+    fs.mkdirSync(fullPath, { recursive: true });
+  }
+});
+
 const app = express();
 
-// Allow requests from localhost and deployed Vercel domains
+// Allow requests from localhost and deployed domains
 app.use(cors({
-  origin: true, // Reflects the request origin, allowing any domain/device (Vercel, mobile, localhost)
+  origin: true,
   credentials: true
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ limit: '10mb', extended: true }));
 app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
 // Health check endpoint

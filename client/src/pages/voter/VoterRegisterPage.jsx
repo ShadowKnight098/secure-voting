@@ -6,6 +6,7 @@ import { voterService } from '../../services/voterService';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
+import FaceCapture from '../../components/biometrics/FaceCapture';
 
 export const VoterRegisterPage = () => {
   const [formData, setFormData] = useState({
@@ -16,6 +17,10 @@ export const VoterRegisterPage = () => {
     password: '',
     confirm_password: '',
     election_id: ''
+  });
+  const [faceData, setFaceData] = useState({
+    photo: '',
+    descriptor: null
   });
   const [elections, setElections] = useState([]);
   const [loadingElections, setLoadingElections] = useState(true);
@@ -47,6 +52,21 @@ export const VoterRegisterPage = () => {
     setFormData(prev => ({ ...prev, [id]: value }));
   };
 
+  const handleBiometricCapture = (captured) => {
+    setFaceData({
+      photo: captured.photo,
+      descriptor: captured.descriptor
+    });
+    setError('');
+  };
+
+  const handleBiometricReset = () => {
+    setFaceData({
+      photo: '',
+      descriptor: null
+    });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
@@ -66,6 +86,11 @@ export const VoterRegisterPage = () => {
       return;
     }
 
+    if (!faceData.photo || !faceData.descriptor) {
+      setError('Please capture your facial biometrics before submitting registration');
+      return;
+    }
+
     setSubmitting(true);
     const res = await register({
       full_name: formData.full_name,
@@ -73,7 +98,9 @@ export const VoterRegisterPage = () => {
       phone: formData.phone,
       voter_id_number: formData.voter_id_number,
       password: formData.password,
-      election_id: parseInt(formData.election_id, 10)
+      election_id: parseInt(formData.election_id, 10),
+      face_descriptor: faceData.descriptor,
+      face_photo: faceData.photo
     });
 
     if (res.success) {
@@ -203,13 +230,22 @@ export const VoterRegisterPage = () => {
               />
             </div>
 
+            {/* Facial Biometric Enrollment Component */}
+            <div className="pt-2">
+              <FaceCapture
+                capturedPhoto={faceData.photo}
+                onCapture={handleBiometricCapture}
+                onReset={handleBiometricReset}
+              />
+            </div>
+
             <div className="bg-lavender/70 border-2 border-ink rounded-[12px] p-4 text-xs font-medium text-ink space-y-1.5 shadow-neo-sm">
               <div className="flex items-center text-ink font-bold gap-1.5">
                 <CheckCircle2 size={16} className="text-mint fill-ink" />
-                <span>Next steps after registration:</span>
+                <span>Biometric enrollment note:</span>
               </div>
-              <p>1. Administrator reviews and grants verification status.</p>
-              <p>2. Video/Biometric verification will authenticate identity before voting.</p>
+              <p>• Your facial descriptor is recorded securely for 1-to-1 match verification.</p>
+              <p>• Administrator will verify your identity before granting active ballot access.</p>
             </div>
 
             {/* One Main Action: Pink Button */}
@@ -219,7 +255,7 @@ export const VoterRegisterPage = () => {
               fullWidth
               size="lg"
               loading={submitting}
-              className="mt-6"
+              className="mt-6 shadow-neo-lg"
             >
               Complete voter registration <ArrowRight size={18} className="ml-2" />
             </Button>
