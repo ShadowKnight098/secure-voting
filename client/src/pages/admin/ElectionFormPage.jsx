@@ -30,7 +30,7 @@ export const ElectionFormPage = () => {
           const formatDate = (dateStr) => {
             if (!dateStr) return '';
             const d = new Date(dateStr);
-            return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+            return d.toISOString().split('T')[0];
           };
           
           setFormData({
@@ -60,8 +60,8 @@ export const ElectionFormPage = () => {
     e.preventDefault();
     setSubmitting(true);
     
-    if (new Date(formData.startDate) >= new Date(formData.endDate)) {
-      toast.error('End date must be after start date');
+    if (new Date(formData.startDate) > new Date(formData.endDate)) {
+      toast.error('End date must be on or after start date');
       setSubmitting(false);
       return;
     }
@@ -136,16 +136,16 @@ export const ElectionFormPage = () => {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             <Input
               id="startDate"
-              type="datetime-local"
-              label="Voting start date & time"
+              type="date"
+              label="Voting start date"
               value={formData.startDate}
               onChange={handleChange}
               required
             />
             <Input
               id="endDate"
-              type="datetime-local"
-              label="Voting end date & time"
+              type="date"
+              label="Voting end date"
               value={formData.endDate}
               onChange={handleChange}
               required
