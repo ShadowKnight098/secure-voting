@@ -1,11 +1,22 @@
 import React from 'react';
 
-export const Card = ({ children, className = '', hover = false, ...props }) => {
+export const Card = ({ 
+  children, 
+  className = '', 
+  hover = false, 
+  selected = false,
+  ...props 
+}) => {
   return (
     <div 
       className={`
-        bg-slate-800/40 backdrop-blur-md border border-slate-700/50 rounded-xl overflow-hidden
-        ${hover ? 'hover:border-indigo-500/30 hover:shadow-lg hover:shadow-indigo-500/5 transition-all duration-300' : ''}
+        border-2 border-ink rounded-[14px] overflow-hidden text-ink
+        transition-all duration-150 ease-out
+        ${selected 
+          ? 'bg-sun shadow-neo-sm translate-x-[2px] translate-y-[2px]' 
+          : 'bg-surface shadow-neo'
+        }
+        ${hover && !selected ? 'hover:shadow-neo-hover hover:-translate-x-[1px] hover:-translate-y-[1px] active:translate-x-[2px] active:translate-y-[2px] active:shadow-neo-sm cursor-pointer' : ''}
         ${className}
       `}
       {...props}

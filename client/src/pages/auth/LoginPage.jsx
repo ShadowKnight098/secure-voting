@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, User, Lock } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { ShieldCheck, User, Lock, ArrowRight, UserCheck } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
+import Card from '../../components/ui/Card';
 
 export const LoginPage = () => {
   const [username, setUsername] = useState('');
@@ -28,68 +29,89 @@ export const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex relative overflow-hidden">
-      {/* Animated Background Orbs */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-600/20 rounded-full blur-[100px] animate-pulse-slow"></div>
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-violet-600/20 rounded-full blur-[100px] animate-pulse-slow" style={{ animationDelay: '1s' }}></div>
-
-      {/* Left Branding Panel (Desktop) */}
-      <div className="hidden lg:flex flex-1 flex-col justify-center items-center relative z-10 p-12 bg-slate-900/50 backdrop-blur-sm border-r border-slate-800">
-        <div className="max-w-md text-center animate-slide-in-left">
-          <div className="inline-flex items-center justify-center w-24 h-24 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-violet-500/20 border border-indigo-500/30 mb-8 shadow-2xl shadow-indigo-500/10">
-            <ShieldCheck className="w-12 h-12 text-indigo-400" />
+    <div className="min-h-screen bg-lavender flex flex-col justify-center items-center p-4 sm:p-6 relative text-ink">
+      <div className="w-full max-w-md animate-slide-up">
+        {/* Top Branding Badge */}
+        <div className="text-center mb-8">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-[14px] bg-violet text-white border-2 border-ink shadow-neo mb-4">
+            <ShieldCheck className="w-9 h-9 text-sun" />
           </div>
-          <h1 className="text-4xl font-bold text-white mb-6 tracking-tight">Secure Electronic Voting System</h1>
-          <p className="text-lg text-slate-400">
-            Administrative portal for managing elections, candidates, and secure voting operations.
+          <h1 className="text-3xl font-extrabold text-ink tracking-tight">Admin Console</h1>
+          <p className="text-ink/70 font-medium text-sm mt-1">
+            Secure Electronic Voting Management
           </p>
         </div>
-      </div>
 
-      {/* Right Login Form */}
-      <div className="flex-1 flex flex-col justify-center items-center p-6 relative z-10">
-        <div className="w-full max-w-md glass-panel p-8 sm:p-10 rounded-2xl animate-slide-up">
-          <div className="text-center mb-10">
-            <h2 className="text-2xl font-bold text-white mb-2">Welcome Back</h2>
-            <p className="text-slate-400">Sign in to the admin portal</p>
+        {/* Card Form */}
+        <Card className="p-6 sm:p-10 shadow-neo-xl">
+          <div className="mb-6">
+            <div className="inline-block px-3 py-1 rounded-full bg-sun border-2 border-ink text-xs font-bold text-ink shadow-neo-sm mb-3">
+              Official Access Only
+            </div>
+            <h2 className="text-2xl font-bold text-ink">Administrator Sign In</h2>
           </div>
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
             {error && (
-              <div className="p-4 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 text-sm">
-                {error}
+              <div className="p-4 rounded-[12px] bg-coral border-2 border-ink text-ink text-sm font-bold shadow-neo-sm animate-slide-up flex items-center gap-2">
+                <span>⚠️</span>
+                <span>{error}</span>
               </div>
             )}
             
             <Input
-              label="Username"
+              id="username"
+              label="Admin Username"
               icon={User}
-              placeholder="Enter your username"
+              placeholder="e.g. admin or vaseem"
               value={username}
               onChange={(e) => setUsername(e.target.value)}
               required
             />
             
             <Input
+              id="password"
               label="Password"
               type="password"
               icon={Lock}
-              placeholder="Enter your password"
+              placeholder="Enter your admin password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
             />
 
+            {/* One Main Action: Pink Button */}
             <Button
               type="submit"
+              variant="primary"
               fullWidth
               size="lg"
               loading={loading}
-              className="mt-8"
+              className="mt-6"
             >
-              Sign In
+              Sign In to Admin Panel <ArrowRight size={18} className="ml-2" />
             </Button>
           </form>
+
+          {/* Switch to Voter Portal */}
+          <div className="mt-8 pt-6 border-t-2 border-ink text-center">
+            <p className="text-sm font-semibold text-ink/70 mb-3">Are you an eligible voter?</p>
+            <Button
+              type="button"
+              variant="secondary"
+              fullWidth
+              onClick={() => navigate('/voter/login')}
+              icon={UserCheck}
+            >
+              Go to Voter Portal
+            </Button>
+          </div>
+        </Card>
+
+        {/* Demo Credentials Helper Card */}
+        <div className="mt-6 p-4 rounded-[14px] bg-surface border-2 border-ink shadow-neo-sm text-xs font-medium text-ink flex items-center justify-between">
+          <span>Demo Admin: <strong className="font-bold">admin</strong> / <strong className="font-bold">admin123</strong></span>
+          <span className="px-2 py-0.5 rounded-full bg-mint border border-ink text-[10px] font-bold">Ready</span>
         </div>
       </div>
     </div>

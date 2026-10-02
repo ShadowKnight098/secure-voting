@@ -1,31 +1,40 @@
 import React from 'react';
 
-const variants = {
-  upcoming: 'bg-blue-500/10 text-blue-400 border-blue-500/20',
-  active: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
-  completed: 'bg-slate-500/10 text-slate-400 border-slate-500/20',
-  cancelled: 'bg-red-500/10 text-red-400 border-red-500/20',
+const statusVariants = {
+  upcoming: 'bg-sky text-ink',
+  active: 'bg-sky text-ink',
+  info: 'bg-sky text-ink',
+  completed: 'bg-mint text-ink',
+  voted: 'bg-mint text-ink',
+  verified: 'bg-mint text-ink',
+  cancelled: 'bg-coral text-ink',
+  closed: 'bg-coral text-ink',
+  error: 'bg-coral text-ink',
+  pending: 'bg-sun text-ink',
 };
 
 const dotColors = {
-  upcoming: 'bg-blue-400',
-  active: 'bg-emerald-400',
-  completed: 'bg-slate-400',
-  cancelled: 'bg-red-400',
+  upcoming: 'bg-ink',
+  active: 'bg-ink animate-ping',
+  completed: 'bg-ink',
+  voted: 'bg-ink',
+  verified: 'bg-ink',
+  cancelled: 'bg-ink',
+  pending: 'bg-ink',
 };
 
-export const Badge = ({ status, className = '' }) => {
-  const normalizedStatus = status.toLowerCase();
-  const variantClass = variants[normalizedStatus] || variants.completed;
-  const dotClass = dotColors[normalizedStatus] || dotColors.completed;
+export const Badge = ({ status = 'upcoming', className = '' }) => {
+  const normalizedStatus = (status || '').toString().toLowerCase();
+  const variantClass = statusVariants[normalizedStatus] || 'bg-white text-ink';
+  const dotColor = dotColors[normalizedStatus] || 'bg-ink';
 
   return (
     <span className={`
-      inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold uppercase tracking-wider
-      border ${variantClass} ${className}
+      inline-flex items-center gap-1.5 px-3 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider
+      border-2 border-ink shadow-neo-sm ${variantClass} ${className}
     `}>
-      <span className={`w-1.5 h-1.5 rounded-full ${dotClass} ${normalizedStatus === 'active' ? 'animate-pulse' : ''}`} />
-      {status}
+      <span className={`w-2 h-2 rounded-full ${dotColor}`} />
+      <span>{status}</span>
     </span>
   );
 };

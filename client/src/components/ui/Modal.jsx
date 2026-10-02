@@ -28,32 +28,38 @@ export const Modal = ({ isOpen, onClose, title, children, footer, size = 'md' })
   };
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6">
+      {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm transition-opacity animate-fade-in"
+        className="fixed inset-0 bg-ink/60 backdrop-blur-sm transition-opacity animate-fade-in"
         onClick={onClose}
       />
       
+      {/* Modal Dialog */}
       <div className={`
-        relative w-full ${sizeClasses[size]} glass-panel rounded-xl overflow-hidden shadow-2xl animate-slide-up
-        flex flex-col max-h-[90vh]
+        relative w-full ${sizeClasses[size]} bg-surface border-2 border-ink rounded-[16px] 
+        overflow-hidden shadow-neo-xl animate-slide-up flex flex-col max-h-[90vh] z-10 text-ink
       `}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-700/50 bg-slate-800/50">
-          <h3 className="text-lg font-semibold text-white">{title}</h3>
+        {/* Header */}
+        <div className="flex items-center justify-between px-6 py-4 border-b-2 border-ink bg-lavender">
+          <h3 className="text-xl font-bold text-ink">{title}</h3>
           <button 
             onClick={onClose}
-            className="text-slate-400 hover:text-white transition-colors p-1 rounded-lg hover:bg-slate-700"
+            className="text-ink hover:bg-surface p-1.5 rounded-lg border-2 border-transparent hover:border-ink hover:shadow-neo-sm transition-all"
+            aria-label="Close modal"
           >
             <X size={20} />
           </button>
         </div>
         
-        <div className="p-6 overflow-y-auto">
+        {/* Body */}
+        <div className="p-6 overflow-y-auto bg-surface">
           {children}
         </div>
         
+        {/* Footer */}
         {footer && (
-          <div className="px-6 py-4 border-t border-slate-700/50 bg-slate-800/30 flex justify-end gap-3">
+          <div className="px-6 py-4 border-t-2 border-ink bg-lavender/60 flex justify-end gap-3">
             {footer}
           </div>
         )}

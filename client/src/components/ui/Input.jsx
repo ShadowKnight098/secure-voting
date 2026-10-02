@@ -9,39 +9,40 @@ export const Input = forwardRef(({
   required,
   ...props
 }, ref) => {
-  const id = useId();
+  const generatedId = useId();
+  const inputId = props.id || generatedId;
   const isTextarea = type === 'textarea';
   
   const baseClasses = `
-    w-full bg-slate-800/50 border border-slate-700 rounded-lg 
-    text-slate-200 placeholder-slate-500
-    focus:outline-none focus:border-indigo-500 focus:ring-1 focus:ring-indigo-500
-    transition-colors duration-200
-    disabled:opacity-50 disabled:bg-slate-900
-    ${Icon ? 'pl-10' : 'pl-4'} pr-4
-    ${isTextarea ? 'py-3' : 'h-11'}
-    ${error ? 'border-red-500 focus:border-red-500 focus:ring-red-500' : ''}
+    w-full bg-surface border-2 border-ink rounded-[12px] 
+    text-ink placeholder:text-slate-400 font-medium
+    focus:outline-none focus:ring-4 focus:ring-sun/60 focus:border-ink
+    transition-all duration-150
+    disabled:opacity-60 disabled:bg-slate-100 disabled:cursor-not-allowed
+    ${Icon ? 'pl-11' : 'pl-4'} pr-4
+    ${isTextarea ? 'py-3' : 'h-12'}
+    ${error ? 'border-coral ring-2 ring-coral/30' : ''}
     ${className}
   `;
 
   return (
     <div className="w-full">
       {label && (
-        <label htmlFor={id} className="block text-sm font-medium text-slate-300 mb-1.5">
-          {label} {required && <span className="text-red-400">*</span>}
+        <label htmlFor={inputId} className="block text-sm font-semibold text-ink mb-1.5">
+          {label} {required && <span className="text-coral">*</span>}
         </label>
       )}
       <div className="relative">
         {Icon && (
-          <div className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none">
-            <Icon size={18} />
+          <div className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink/70 pointer-events-none">
+            <Icon size={20} />
           </div>
         )}
         
         {isTextarea ? (
           <textarea
             ref={ref}
-            id={id}
+            id={inputId}
             required={required}
             className={baseClasses}
             {...props}
@@ -49,9 +50,9 @@ export const Input = forwardRef(({
         ) : type === 'select' ? (
           <select
             ref={ref}
-            id={id}
+            id={inputId}
             required={required}
-            className={`${baseClasses} appearance-none`}
+            className={`${baseClasses} cursor-pointer`}
             {...props}
           >
             {props.children}
@@ -59,7 +60,7 @@ export const Input = forwardRef(({
         ) : (
           <input
             ref={ref}
-            id={id}
+            id={inputId}
             type={type}
             required={required}
             className={baseClasses}
@@ -68,7 +69,9 @@ export const Input = forwardRef(({
         )}
       </div>
       {error && (
-        <p className="mt-1.5 text-sm text-red-400 animate-slide-up">{error}</p>
+        <p className="mt-1.5 text-xs sm:text-sm font-semibold text-coral animate-slide-up flex items-center gap-1">
+          <span>●</span> {error}
+        </p>
       )}
     </div>
   );

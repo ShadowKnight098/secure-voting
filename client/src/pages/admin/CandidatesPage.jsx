@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { Plus, ChevronRight, UserPlus, Trash2, Edit2, User } from 'lucide-react';
+import { ChevronRight, UserPlus, Trash2, Edit2, User } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { candidateService } from '../../services/candidateService';
 import { electionService } from '../../services/electionService';
@@ -27,7 +27,7 @@ export const CandidatesPage = () => {
       setCandidates(candRes.data || []);
       setElection(elRes || { title: 'Unknown Election' });
     } catch (err) {
-      toast.error('Failed to load data');
+      toast.error('Failed to load candidate roster');
     } finally {
       setLoading(false);
     }
@@ -40,7 +40,7 @@ export const CandidatesPage = () => {
   const handleDelete = async () => {
     try {
       await candidateService.delete(electionId, deleteDialog.id);
-      toast.success('Candidate deleted');
+      toast.success('Candidate deleted successfully');
       setDeleteDialog({ isOpen: false, id: null, name: '' });
       fetchData();
     } catch (err) {
@@ -49,71 +49,86 @@ export const CandidatesPage = () => {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
-      {/* Breadcrumb */}
-      <div className="flex items-center text-sm text-slate-400">
-        <Link to="/admin/elections" className="hover:text-white transition-colors">Elections</Link>
-        <ChevronRight size={16} className="mx-2" />
-        <span className="text-slate-300 font-medium truncate max-w-xs">{election?.title || 'Loading...'}</span>
-        <ChevronRight size={16} className="mx-2" />
-        <span className="text-white font-medium">Candidates</span>
+    <div className="space-y-6 animate-fade-in text-ink">
+      {/* Breadcrumb Navigation */}
+      <div className="flex items-center text-xs sm:text-sm font-bold text-ink/70">
+        <Link to="/admin/elections" className="hover:underline">Elections</Link>
+        <ChevronRight size={16} className="mx-1.5" />
+        <span className="text-ink truncate max-w-xs">{election?.title || 'Loading...'}</span>
+        <ChevronRight size={16} className="mx-1.5" />
+        <span className="text-violet">Candidates</span>
       </div>
 
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white">Manage Candidates</h2>
-          <p className="text-slate-400 mt-1">{election?.title}</p>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">Candidate roster</h2>
+          <p className="text-ink/70 font-medium text-sm mt-1">{election?.title}</p>
         </div>
-        <Button onClick={() => navigate(`/admin/elections/${electionId}/candidates/new`)} icon={UserPlus}>
-          Add Candidate
+        {/* One Main Pink Action */}
+        <Button variant="primary" onClick={() => navigate(`/admin/elections/${electionId}/candidates/new`)} icon={UserPlus}>
+          Add candidate
         </Button>
       </div>
 
       {loading ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1,2,3].map(i => <div key={i} className="h-48 rounded-xl animate-skeleton"></div>)}
+          {[1,2,3].map(i => <div key={i} className="h-56 rounded-[14px] animate-skeleton"></div>)}
         </div>
       ) : candidates.length === 0 ? (
         <Card className="p-12">
           <EmptyState 
             icon={User}
-            title="No candidates yet" 
-            description="Add the first candidate to this election."
-            actionLabel="Add Candidate"
+            title="No candidates registered yet" 
+            description="Add the first candidate to this election roster."
+            actionLabel="Add candidate"
             onAction={() => navigate(`/admin/elections/${electionId}/candidates/new`)}
           />
         </Card>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {candidates.map(candidate => (
-            <Card key={candidate.id} hover className="p-5 flex flex-col group relative">
-              <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity flex gap-2">
+            <Card key={candidate.id} hover className="p-5 flex flex-col justify-between relative group">
+              {/* Action Buttons */}
+              <div className="absolute top-4 right-4 flex gap-2">
                 <button 
                   onClick={() => navigate(`/admin/elections/${electionId}/candidates/${candidate.id}/edit`)}
-                  className="p-1.5 rounded bg-slate-800/80 text-slate-300 hover:text-white hover:bg-slate-700 backdrop-blur"
+                  className="p-1.5 rounded-[8px] bg-surface border-2 border-ink shadow-neo-sm text-ink hover:bg-lavender hover:-translate-y-0.5 active:translate-y-0.5 transition-all"
+                  title="Edit candidate"
                 >
-                  <Edit2 size={16} />
+                  <Edit2 size={14} />
                 </button>
                 <button 
                   onClick={() => setDeleteDialog({ isOpen: true, id: candidate.id, name: candidate.name })}
-                  className="p-1.5 rounded bg-red-500/20 text-red-400 hover:text-red-300 hover:bg-red-500/30 backdrop-blur"
+                  className="p-1.5 rounded-[8px] bg-coral border-2 border-ink shadow-neo-sm text-ink hover:-translate-y-0.5 active:translate-y-0.5 transition-all"
+                  title="Delete candidate"
                 >
-                  <Trash2 size={16} />
+                  <Trash2 size={14} />
                 </button>
               </div>
 
-              <div className="flex items-center flex-col text-center">
-                <div className="w-24 h-24 rounded-full overflow-hidden border-4 border-slate-700 bg-slate-800 mb-4 flex-shrink-0 relative">
+              {/* Candidate Info with Identical Styling Rule */}
+              <div className="flex items-center flex-col text-center pt-2">
+                <div className="w-20 h-20 rounded-[12px] overflow-hidden border-2 border-ink bg-violet text-white shadow-neo-sm mb-4 flex items-center justify-center relative flex-shrink-0">
                   {candidate.photoUrl ? (
                     <img src={candidate.photoUrl} alt={candidate.name} className="w-full h-full object-cover" />
                   ) : (
-                    <User className="w-12 h-12 text-slate-500 absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                    <span className="text-2xl font-extrabold text-white">
+                      {candidate.name?.charAt(0).toUpperCase() || 'C'}
+                    </span>
                   )}
                 </div>
-                <h3 className="text-lg font-bold text-white">{candidate.name}</h3>
-                <span className="inline-block mt-2 px-3 py-1 bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 rounded-full text-xs font-semibold">
-                  {candidate.party}
+
+                <h3 className="text-lg font-extrabold text-ink">{candidate.name}</h3>
+                
+                <span className="inline-block mt-2 px-3 py-0.5 bg-lavender text-ink border-2 border-ink shadow-neo-sm rounded-full text-xs font-bold">
+                  {candidate.party || 'Independent'}
                 </span>
+
+                {candidate.bio && (
+                  <p className="text-xs font-medium text-ink/70 mt-3 line-clamp-2 px-1">
+                    {candidate.bio}
+                  </p>
+                )}
               </div>
             </Card>
           ))}
@@ -125,7 +140,7 @@ export const CandidatesPage = () => {
         onClose={() => setDeleteDialog({ isOpen: false, id: null, name: '' })}
         onConfirm={handleDelete}
         title="Remove Candidate"
-        message={`Are you sure you want to remove ${deleteDialog.name} from this election?`}
+        message={`Are you sure you want to remove "${deleteDialog.name}" from this election?`}
       />
     </div>
   );

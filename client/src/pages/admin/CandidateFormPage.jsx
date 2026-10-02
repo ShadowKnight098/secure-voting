@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Upload, X, User } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { candidateService } from '../../services/candidateService';
@@ -94,50 +94,55 @@ export const CandidateFormPage = () => {
     }
   };
 
-  if (loading) return <div className="h-96 rounded-xl animate-skeleton"></div>;
+  if (loading) return <div className="h-96 rounded-[14px] animate-skeleton max-w-4xl mx-auto"></div>;
 
   return (
-    <div className="max-w-4xl mx-auto animate-slide-up">
+    <div className="max-w-4xl mx-auto animate-slide-up text-ink">
       <div className="mb-6 flex items-center">
         <button 
           onClick={() => navigate(`/admin/elections/${electionId}/candidates`)}
-          className="mr-4 p-2 rounded-lg bg-slate-800 text-slate-400 hover:text-white transition-colors"
+          className="inline-flex items-center text-sm font-bold text-ink bg-surface border-2 border-ink px-3 py-1.5 rounded-[10px] shadow-neo-sm hover:-translate-y-0.5 active:translate-y-0.5 transition-all mr-4"
         >
-          <ArrowLeft size={20} />
+          <ArrowLeft size={16} className="mr-1.5" />
+          Back to candidates
         </button>
         <div>
-          <h2 className="text-2xl font-bold text-white">
-            {isEdit ? 'Edit Candidate' : 'Add New Candidate'}
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-ink">
+            {isEdit ? 'Edit candidate' : 'Add new candidate'}
           </h2>
-          <p className="text-slate-400 text-sm mt-1">Provide candidate details and photo</p>
         </div>
       </div>
 
-      <Card className="p-6 md:p-8">
+      <Card className="p-6 md:p-8 shadow-neo-xl">
         <form onSubmit={handleSubmit} className="flex flex-col md:flex-row gap-8">
           
-          {/* Photo Upload Section */}
+          {/* Photo Upload Box */}
           <div className="flex-shrink-0 w-full md:w-64 flex flex-col items-center">
-            <div className="w-full relative group cursor-pointer" onClick={() => fileInputRef.current?.click()}>
-              <div className={`w-full aspect-square rounded-2xl overflow-hidden border-2 border-dashed flex flex-col items-center justify-center transition-colors
-                ${photoPreview ? 'border-transparent bg-slate-800' : 'border-slate-600 bg-slate-800/50 hover:bg-slate-800 hover:border-indigo-500'}
+            <div 
+              className="w-full relative group cursor-pointer" 
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <div className={`
+                w-full aspect-square rounded-[14px] overflow-hidden border-2 border-dashed border-ink 
+                flex flex-col items-center justify-center transition-all bg-lavender/40 hover:bg-lavender
+                ${photoPreview ? 'border-solid bg-surface' : ''}
               `}>
                 {photoPreview ? (
-                  <>
+                  <div className="relative w-full h-full">
                     <img src={photoPreview} alt="Preview" className="w-full h-full object-cover" />
-                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                      <span className="text-white text-sm font-medium flex items-center bg-black/50 px-3 py-1.5 rounded-lg">
-                        <Upload size={16} className="mr-2" /> Change Photo
+                    <div className="absolute inset-0 bg-ink/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <span className="text-white text-xs font-bold flex items-center bg-violet px-3 py-1.5 rounded-full border-2 border-ink shadow-neo-sm">
+                        <Upload size={14} className="mr-1.5" /> Change photo
                       </span>
                     </div>
-                  </>
+                  </div>
                 ) : (
                   <div className="text-center p-4">
-                    <div className="w-12 h-12 bg-slate-700 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-400">
+                    <div className="w-12 h-12 bg-violet text-white border-2 border-ink rounded-[12px] shadow-neo-sm flex items-center justify-center mx-auto mb-3">
                       <User size={24} />
                     </div>
-                    <span className="text-sm font-medium text-slate-300 block mb-1">Click to upload</span>
-                    <span className="text-xs text-slate-500">JPG, PNG, GIF up to 5MB</span>
+                    <span className="text-sm font-bold text-ink block mb-1">Upload Photo</span>
+                    <span className="text-xs text-ink/60 font-medium">PNG, JPG up to 5MB</span>
                   </div>
                 )}
               </div>
@@ -147,7 +152,7 @@ export const CandidateFormPage = () => {
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); setPhotoPreview(null); setPhotoFile(null); }}
-                className="mt-3 text-sm text-red-400 hover:text-red-300 flex items-center"
+                className="mt-3 text-xs font-bold text-coral hover:underline flex items-center"
               >
                 <X size={14} className="mr-1" /> Remove photo
               </button>
@@ -165,7 +170,7 @@ export const CandidateFormPage = () => {
           <div className="flex-1 space-y-5">
             <Input
               id="name"
-              label="Full Name"
+              label="Full name"
               value={formData.name}
               onChange={handleChange}
               placeholder="e.g. Jane Doe"
@@ -174,29 +179,39 @@ export const CandidateFormPage = () => {
 
             <Input
               id="party"
-              label="Political Party"
+              label="Political party / affiliation"
               value={formData.party}
               onChange={handleChange}
-              placeholder="e.g. Independent"
+              placeholder="e.g. Independent or Student Union"
               required
             />
 
             <Input
               id="bio"
               type="textarea"
-              label="Biography"
+              label="Candidate biography / manifesto"
               value={formData.bio}
               onChange={handleChange}
-              placeholder="Short bio or manifesto..."
-              rows={5}
+              placeholder="Key policies, background, and candidate statement..."
+              rows={4}
             />
 
-            <div className="pt-4 flex justify-end gap-4 border-t border-slate-800">
-              <Button type="button" variant="ghost" onClick={() => navigate(`/admin/elections/${electionId}/candidates`)} disabled={submitting}>
+            <div className="pt-4 flex justify-end gap-4 border-t-2 border-ink">
+              <Button 
+                type="button" 
+                variant="secondary" 
+                onClick={() => navigate(`/admin/elections/${electionId}/candidates`)} 
+                disabled={submitting}
+              >
                 Cancel
               </Button>
-              <Button type="submit" loading={submitting}>
-                {isEdit ? 'Save Changes' : 'Add Candidate'}
+              {/* One Main Pink Action */}
+              <Button 
+                type="submit" 
+                variant="primary"
+                loading={submitting}
+              >
+                {isEdit ? 'Save changes' : 'Add candidate'}
               </Button>
             </div>
           </div>

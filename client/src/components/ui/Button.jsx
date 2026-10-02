@@ -2,17 +2,19 @@ import React from 'react';
 import { Loader2 } from 'lucide-react';
 
 const variants = {
-  primary: 'btn-primary',
-  secondary: 'bg-slate-700 hover:bg-slate-600 text-white border-transparent',
-  danger: 'bg-red-500/10 hover:bg-red-500/20 text-red-500 border border-red-500/50',
-  ghost: 'bg-transparent hover:bg-slate-800 text-slate-300 hover:text-white',
-  success: 'bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/50',
+  primary: 'bg-pink text-white hover:bg-pink-hover active:bg-pink',
+  secondary: 'bg-white text-ink hover:bg-violet-50 active:bg-white',
+  danger: 'bg-coral text-ink hover:bg-coral-hover active:bg-coral',
+  ghost: 'bg-transparent text-ink hover:bg-white/80 border-transparent shadow-none hover:border-ink hover:shadow-neo-sm',
+  mint: 'bg-mint text-ink hover:bg-mint-hover active:bg-mint',
+  violet: 'bg-violet text-white hover:bg-violet-700 active:bg-violet',
+  sun: 'bg-sun text-ink hover:bg-sun-hover active:bg-sun',
 };
 
 const sizes = {
-  sm: 'px-3 py-1.5 text-sm',
-  md: 'px-4 py-2',
-  lg: 'px-6 py-3 text-lg font-medium',
+  sm: 'px-3 py-1.5 text-xs min-h-[36px] rounded-[10px]',
+  md: 'px-5 py-2.5 text-sm sm:text-base min-h-[48px] rounded-[14px]',
+  lg: 'px-7 py-3.5 text-base sm:text-lg min-h-[52px] rounded-[14px]',
 };
 
 export const Button = React.forwardRef(({
@@ -26,17 +28,20 @@ export const Button = React.forwardRef(({
   disabled,
   ...props
 }, ref) => {
+  const isGhost = variant === 'ghost';
+  
   return (
     <button
       ref={ref}
       disabled={disabled || loading}
       className={`
-        inline-flex items-center justify-center rounded-lg font-medium transition-all duration-200
-        focus:outline-none focus:ring-2 focus:ring-indigo-500/50 focus:ring-offset-2 focus:ring-offset-slate-900
-        disabled:opacity-50 disabled:cursor-not-allowed
-        active:scale-95
-        ${variants[variant]}
-        ${sizes[size]}
+        inline-flex items-center justify-center font-bold tracking-tight
+        ${isGhost ? 'border-2 border-transparent' : 'border-2 border-ink shadow-neo hover:shadow-neo-hover active:shadow-neo-active hover:-translate-x-[1px] hover:-translate-y-[1px] active:translate-x-[3px] active:translate-y-[3px]'}
+        transition-all duration-150 ease-out
+        focus:outline-none focus:ring-4 focus:ring-sun/60 focus:ring-offset-1
+        disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none disabled:shadow-neo-sm
+        ${variants[variant] || variants.primary}
+        ${sizes[size] || sizes.md}
         ${fullWidth ? 'w-full' : ''}
         ${className}
       `}
@@ -45,9 +50,9 @@ export const Button = React.forwardRef(({
       {loading ? (
         <Loader2 className="w-5 h-5 mr-2 animate-spin" />
       ) : Icon ? (
-        <Icon className="w-5 h-5 mr-2" />
+        <Icon className="w-5 h-5 mr-2 flex-shrink-0" />
       ) : null}
-      {children}
+      <span>{children}</span>
     </button>
   );
 });

@@ -4,15 +4,9 @@ import {
   Search, 
   UserPlus, 
   CheckCircle2, 
-  XCircle, 
   Clock, 
   Trash2, 
-  Filter, 
-  Mail, 
-  Phone, 
-  Hash, 
   Vote, 
-  AlertCircle,
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
@@ -28,9 +22,9 @@ import EmptyState from '../../components/ui/EmptyState';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 
 const verificationTabs = [
-  { id: 'all', label: 'All Voters' },
+  { id: 'all', label: 'All voters' },
   { id: 'verified', label: 'Verified', status: '1' },
-  { id: 'pending', label: 'Pending Verification', status: '0' }
+  { id: 'pending', label: 'Pending verification', status: '0' }
 ];
 
 export const VotersPage = () => {
@@ -165,17 +159,18 @@ export const VotersPage = () => {
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in text-ink">
       {/* Header */}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white tracking-tight">Voter Directory</h2>
-          <p className="text-slate-400 text-sm mt-1">
-            Manage voter registrations, grant verification, and track voting status.
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">Voter directory</h2>
+          <p className="text-ink/70 font-medium text-sm mt-1">
+            Manage voter registrations, approve verifications, and track participation.
           </p>
         </div>
-        <Button onClick={() => setIsCreateModalOpen(true)} icon={UserPlus}>
-          Add Voter
+        {/* One Main Pink Action */}
+        <Button variant="primary" onClick={() => setIsCreateModalOpen(true)} icon={UserPlus}>
+          Add voter
         </Button>
       </div>
 
@@ -197,7 +192,7 @@ export const VotersPage = () => {
               <select
                 value={selectedElection}
                 onChange={(e) => setSelectedElection(e.target.value)}
-                className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                className="w-full bg-surface border-2 border-ink rounded-[12px] px-4 py-3 text-sm font-bold text-ink focus:outline-none focus:ring-4 focus:ring-sun/60 transition-all cursor-pointer"
               >
                 <option value="">All Elections</option>
                 {elections.map((el) => (
@@ -216,10 +211,10 @@ export const VotersPage = () => {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`
-                  px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors
+                  px-4 py-2 rounded-[12px] text-xs sm:text-sm font-bold whitespace-nowrap transition-all border-2 border-ink
                   ${activeTab === tab.id
-                    ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30'
-                    : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 border border-transparent'
+                    ? 'bg-sun text-ink font-extrabold shadow-neo-sm -translate-y-0.5'
+                    : 'bg-surface text-ink hover:bg-lavender hover:shadow-neo-sm'
                   }
                 `}
               >
@@ -231,9 +226,9 @@ export const VotersPage = () => {
 
         {/* Table Content */}
         {loading ? (
-          <div className="space-y-4">
+          <div className="space-y-3">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-16 rounded-xl animate-skeleton"></div>
+              <div key={i} className="h-16 rounded-[12px] animate-skeleton"></div>
             ))}
           </div>
         ) : voters.length === 0 ? (
@@ -242,53 +237,53 @@ export const VotersPage = () => {
             title="No voters found"
             description={
               searchTerm || selectedElection || activeTab !== 'all'
-                ? 'Try adjusting your search criteria or filters.'
+                ? 'Try adjusting your search query or status filter.'
                 : 'Get started by enrolling voters or accepting registrations.'
             }
-            actionLabel="Add Voter"
+            actionLabel="Add voter"
             onAction={() => setIsCreateModalOpen(true)}
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[900px]">
+            <table className="w-full text-left border-collapse min-w-[860px]">
               <thead>
-                <tr className="border-b border-slate-700/50 text-xs uppercase font-semibold text-slate-400 tracking-wider">
-                  <th className="pb-3 px-4">Voter Identity</th>
-                  <th className="pb-3 px-4">Voter ID</th>
-                  <th className="pb-3 px-4">Assigned Election</th>
-                  <th className="pb-3 px-4 text-center">Verification Status</th>
-                  <th className="pb-3 px-4 text-center">Vote Cast</th>
-                  <th className="pb-3 px-4 text-right">Actions</th>
+                <tr className="bg-lavender border-b-2 border-ink text-xs font-extrabold uppercase text-ink tracking-wider">
+                  <th className="py-3.5 px-4">Voter Identity</th>
+                  <th className="py-3.5 px-4">Voter ID</th>
+                  <th className="py-3.5 px-4">Assigned Election</th>
+                  <th className="py-3.5 px-4 text-center">Verification Status</th>
+                  <th className="py-3.5 px-4 text-center">Vote Status</th>
+                  <th className="py-3.5 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-800/60 text-sm">
+              <tbody className="divide-y-2 divide-ink text-sm">
                 {voters.map((voter) => {
                   const isVerified = voter.is_verified === 1;
                   const hasVoted = voter.has_voted === 1;
                   return (
                     <tr
                       key={voter.id}
-                      className="hover:bg-slate-800/40 transition-colors group"
+                      className="hover:bg-lavender/60 transition-colors group"
                     >
                       {/* Name & Contact */}
                       <td className="py-4 px-4">
-                        <div className="font-medium text-white">{voter.full_name}</div>
-                        <div className="text-xs text-slate-400 flex items-center gap-2 mt-0.5">
+                        <div className="font-bold text-ink text-base">{voter.full_name}</div>
+                        <div className="text-xs text-ink/75 font-medium flex items-center gap-2 mt-0.5">
                           <span className="truncate max-w-[180px]">{voter.email}</span>
                           {voter.phone && <span>• {voter.phone}</span>}
                         </div>
                       </td>
 
                       {/* Voter ID */}
-                      <td className="py-4 px-4 font-mono text-indigo-300 font-medium">
-                        {voter.voter_id_number}
+                      <td className="py-4 px-4">
+                        <span className="inline-block px-2.5 py-0.5 rounded-[8px] bg-lavender/80 border-2 border-ink font-mono font-bold text-xs text-ink shadow-neo-sm">
+                          {voter.voter_id_number}
+                        </span>
                       </td>
 
                       {/* Election */}
-                      <td className="py-4 px-4">
-                        <span className="text-slate-300 font-medium">
-                          {voter.election_title || 'General Election'}
-                        </span>
+                      <td className="py-4 px-4 font-bold text-ink">
+                        {voter.election_title || 'General Election'}
                       </td>
 
                       {/* Verification Status with Toggle Button */}
@@ -297,16 +292,16 @@ export const VotersPage = () => {
                           onClick={() => handleToggleVerify(voter)}
                           disabled={togglingId === voter.id}
                           className={`
-                            inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold transition-all
+                            inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold border-2 border-ink shadow-neo-sm hover:shadow-neo-hover active:shadow-neo-active hover:-translate-y-0.5 active:translate-y-0.5 transition-all
                             ${isVerified
-                              ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 hover:bg-emerald-500/25'
-                              : 'bg-amber-500/15 text-amber-400 border border-amber-500/30 hover:bg-amber-500/25'
+                              ? 'bg-mint text-ink font-bold'
+                              : 'bg-sun text-ink font-bold'
                             }
                           `}
                           title="Click to toggle verification status"
                         >
                           {togglingId === voter.id ? (
-                            <span className="animate-spin text-xs">⏳</span>
+                            <span className="animate-spin">⏳</span>
                           ) : isVerified ? (
                             <>
                               <CheckCircle2 size={14} /> Verified
@@ -322,11 +317,11 @@ export const VotersPage = () => {
                       {/* Voting Status */}
                       <td className="py-4 px-4 text-center">
                         {hasVoted ? (
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-indigo-500/15 text-indigo-400 border border-indigo-500/30">
-                            <Vote size={13} /> Voted
+                          <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-sky text-ink border-2 border-ink shadow-neo-sm">
+                            <Vote size={14} /> Voted
                           </span>
                         ) : (
-                          <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-medium bg-slate-800 text-slate-400 border border-slate-700">
+                          <span className="inline-block px-3 py-1 rounded-full text-xs font-bold bg-surface text-ink/75 border-2 border-ink shadow-neo-sm">
                             Not Voted
                           </span>
                         )}
@@ -336,10 +331,10 @@ export const VotersPage = () => {
                       <td className="py-4 px-4 text-right">
                         <button
                           onClick={() => setDeleteDialog({ isOpen: true, id: voter.id, name: voter.full_name })}
-                          className="p-1.5 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                          className="p-2 rounded-[10px] bg-coral border-2 border-ink shadow-neo-sm text-ink hover:-translate-y-0.5 active:translate-y-0.5 transition-all"
                           title="Delete Voter"
                         >
-                          <Trash2 size={16} />
+                          <Trash2 size={15} />
                         </button>
                       </td>
                     </tr>
@@ -352,10 +347,10 @@ export const VotersPage = () => {
 
         {/* Pagination Footer */}
         {pagination.totalPages > 1 && (
-          <div className="flex items-center justify-between pt-6 border-t border-slate-800 text-sm text-slate-400">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-6 border-t-2 border-ink text-sm font-medium text-ink">
             <div>
-              Showing <span className="text-white font-medium">{voters.length}</span> of{' '}
-              <span className="text-white font-medium">{pagination.total}</span> voters
+              Showing <span className="font-bold">{voters.length}</span> of{' '}
+              <span className="font-bold">{pagination.total}</span> registered voters
             </div>
             <div className="flex items-center gap-2">
               <Button
@@ -364,9 +359,9 @@ export const VotersPage = () => {
                 disabled={pagination.page <= 1}
                 onClick={() => fetchVoters(pagination.page - 1)}
               >
-                <ChevronLeft size={16} /> Previous
+                <ChevronLeft size={16} className="mr-1" /> Previous
               </Button>
-              <span className="px-3 py-1 bg-slate-800 rounded-lg text-white font-medium text-xs">
+              <span className="px-3 py-1.5 bg-sun border-2 border-ink rounded-[10px] text-ink font-bold text-xs shadow-neo-sm">
                 Page {pagination.page} of {pagination.totalPages}
               </span>
               <Button
@@ -375,7 +370,7 @@ export const VotersPage = () => {
                 disabled={pagination.page >= pagination.totalPages}
                 onClick={() => fetchVoters(pagination.page + 1)}
               >
-                Next <ChevronRight size={16} />
+                Next <ChevronRight size={16} className="ml-1" />
               </Button>
             </div>
           </div>
@@ -386,12 +381,12 @@ export const VotersPage = () => {
       <Modal
         isOpen={isCreateModalOpen}
         onClose={() => !creating && setIsCreateModalOpen(false)}
-        title="Register New Voter"
+        title="Register new voter"
       >
         <form onSubmit={handleCreateVoter} className="space-y-4">
           <Input
             id="full_name"
-            label="Full Legal Name"
+            label="Full legal name"
             placeholder="e.g. Eleanor Vance"
             value={newVoter.full_name}
             onChange={(e) => setNewVoter({ ...newVoter, full_name: e.target.value })}
@@ -401,7 +396,7 @@ export const VotersPage = () => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <Input
               id="voter_id_number"
-              label="Voter ID Number"
+              label="Voter ID number"
               placeholder="e.g. VOTER-2044"
               value={newVoter.voter_id_number}
               onChange={(e) => setNewVoter({ ...newVoter, voter_id_number: e.target.value })}
@@ -410,7 +405,7 @@ export const VotersPage = () => {
             <Input
               id="email"
               type="email"
-              label="Email Address"
+              label="Email address"
               placeholder="voter@example.com"
               value={newVoter.email}
               onChange={(e) => setNewVoter({ ...newVoter, email: e.target.value })}
@@ -422,7 +417,7 @@ export const VotersPage = () => {
             <Input
               id="phone"
               type="tel"
-              label="Phone Number"
+              label="Phone number"
               placeholder="+1 555-0182"
               value={newVoter.phone}
               onChange={(e) => setNewVoter({ ...newVoter, phone: e.target.value })}
@@ -430,7 +425,7 @@ export const VotersPage = () => {
             <Input
               id="password"
               type="password"
-              label="Default Password"
+              label="Default password"
               placeholder="Default: voter123"
               value={newVoter.password}
               onChange={(e) => setNewVoter({ ...newVoter, password: e.target.value })}
@@ -438,16 +433,16 @@ export const VotersPage = () => {
           </div>
 
           <div className="space-y-1">
-            <label className="block text-sm font-medium text-slate-300">
-              Assigned Election <span className="text-red-400">*</span>
+            <label className="block text-sm font-semibold text-ink">
+              Assigned election <span className="text-coral">*</span>
             </label>
             <select
               value={newVoter.election_id}
               onChange={(e) => setNewVoter({ ...newVoter, election_id: e.target.value })}
-              className="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              className="w-full bg-surface border-2 border-ink rounded-[12px] px-4 py-3 text-sm font-bold text-ink focus:outline-none focus:ring-4 focus:ring-sun/60 cursor-pointer"
               required
             >
-              <option value="">Select Election</option>
+              <option value="">Select election</option>
               {elections.map((el) => (
                 <option key={el.id} value={el.id}>
                   {el.title}
@@ -462,24 +457,25 @@ export const VotersPage = () => {
               id="is_verified"
               checked={newVoter.is_verified}
               onChange={(e) => setNewVoter({ ...newVoter, is_verified: e.target.checked })}
-              className="w-4 h-4 rounded bg-slate-800 border-slate-700 text-indigo-600 focus:ring-indigo-500"
+              className="w-5 h-5 rounded-[6px] bg-surface border-2 border-ink text-violet focus:ring-sun cursor-pointer"
             />
-            <label htmlFor="is_verified" className="text-sm text-slate-300">
+            <label htmlFor="is_verified" className="text-sm font-bold text-ink cursor-pointer">
               Mark as Verified immediately
             </label>
           </div>
 
-          <div className="flex justify-end gap-3 pt-4 border-t border-slate-800">
+          <div className="flex justify-end gap-3 pt-4 border-t-2 border-ink">
             <Button
               type="button"
-              variant="ghost"
+              variant="secondary"
               onClick={() => setIsCreateModalOpen(false)}
               disabled={creating}
             >
               Cancel
             </Button>
-            <Button type="submit" loading={creating}>
-              Register Voter
+            {/* One Main Pink Action */}
+            <Button type="submit" variant="primary" loading={creating}>
+              Register voter
             </Button>
           </div>
         </form>
@@ -490,7 +486,7 @@ export const VotersPage = () => {
         isOpen={deleteDialog.isOpen}
         onClose={() => !isDeleting && setDeleteDialog({ isOpen: false, id: null, name: '' })}
         onConfirm={handleDeleteVoter}
-        title="Delete Voter Record"
+        title="Delete voter record"
         message={`Are you sure you want to delete "${deleteDialog.name}"? This voter will not be able to participate in the election.`}
         isLoading={isDeleting}
       />

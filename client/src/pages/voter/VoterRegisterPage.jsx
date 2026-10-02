@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ShieldCheck, User, Mail, Phone, Hash, Lock, Vote, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { ShieldCheck, User, Mail, Phone, Hash, Lock, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { useVoterAuth } from '../../context/VoterAuthContext';
 import { voterService } from '../../services/voterService';
 import Input from '../../components/ui/Input';
@@ -85,26 +85,23 @@ export const VoterRegisterPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Background Orbs */}
-      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-indigo-600/15 rounded-full blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-emerald-600/15 rounded-full blur-[120px] pointer-events-none"></div>
-
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center relative z-10">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-indigo-500/20 to-emerald-500/20 border border-indigo-500/30 mb-4 shadow-xl shadow-indigo-500/10">
-          <ShieldCheck className="w-8 h-8 text-emerald-400" />
+    <div className="min-h-screen bg-lavender flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 relative text-ink">
+      <div className="sm:mx-auto sm:w-full sm:max-w-xl text-center">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-[14px] bg-violet text-white border-2 border-ink shadow-neo mb-4">
+          <ShieldCheck className="w-8 h-8 text-sun" />
         </div>
-        <h2 className="text-3xl font-extrabold text-white tracking-tight">Voter Registration</h2>
-        <p className="mt-2 text-sm text-slate-400">
+        <h2 className="text-3xl font-extrabold text-ink tracking-tight">Voter registration</h2>
+        <p className="mt-2 text-sm font-medium text-ink/70">
           Enroll in the Secure Electronic Voting System
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-xl relative z-10">
-        <Card className="p-6 sm:p-10">
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-xl">
+        <Card className="p-6 sm:p-10 shadow-neo-xl">
           {error && (
-            <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm flex items-center gap-2 animate-slide-up">
-              <span className="font-semibold">Error:</span> {error}
+            <div className="mb-6 p-4 rounded-[12px] bg-coral border-2 border-ink text-ink text-sm font-bold shadow-neo-sm animate-slide-up flex items-center gap-2">
+              <span>⚠️</span>
+              <span>{error}</span>
             </div>
           )}
 
@@ -112,7 +109,7 @@ export const VoterRegisterPage = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <Input
                 id="full_name"
-                label="Full Legal Name"
+                label="Full legal name"
                 icon={User}
                 placeholder="e.g. Johnathan Doe"
                 value={formData.full_name}
@@ -135,7 +132,7 @@ export const VoterRegisterPage = () => {
               <Input
                 id="email"
                 type="email"
-                label="Email Address"
+                label="Email address"
                 icon={Mail}
                 placeholder="john@example.com"
                 value={formData.email}
@@ -146,7 +143,7 @@ export const VoterRegisterPage = () => {
               <Input
                 id="phone"
                 type="tel"
-                label="Phone Number"
+                label="Phone number"
                 icon={Phone}
                 placeholder="+1 555-0199"
                 value={formData.phone}
@@ -155,8 +152,8 @@ export const VoterRegisterPage = () => {
             </div>
 
             <div className="space-y-1">
-              <label htmlFor="election_id" className="block text-sm font-medium text-slate-300">
-                Participating Election <span className="text-red-400">*</span>
+              <label htmlFor="election_id" className="block text-sm font-semibold text-ink">
+                Participating election <span className="text-coral">*</span>
               </label>
               <div className="relative">
                 <select
@@ -164,7 +161,7 @@ export const VoterRegisterPage = () => {
                   value={formData.election_id}
                   onChange={handleChange}
                   disabled={loadingElections}
-                  className="w-full bg-slate-800/80 border border-slate-700/80 rounded-xl px-4 py-2.5 text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                  className="w-full bg-surface border-2 border-ink rounded-[12px] px-4 py-3 text-ink font-bold focus:outline-none focus:ring-4 focus:ring-sun/60 transition-all cursor-pointer"
                   required
                 >
                   {loadingElections ? (
@@ -186,7 +183,7 @@ export const VoterRegisterPage = () => {
               <Input
                 id="password"
                 type="password"
-                label="Create Password"
+                label="Create password"
                 icon={Lock}
                 placeholder="Min 6 characters"
                 value={formData.password}
@@ -197,7 +194,7 @@ export const VoterRegisterPage = () => {
               <Input
                 id="confirm_password"
                 type="password"
-                label="Confirm Password"
+                label="Confirm password"
                 icon={Lock}
                 placeholder="Repeat password"
                 value={formData.confirm_password}
@@ -206,36 +203,38 @@ export const VoterRegisterPage = () => {
               />
             </div>
 
-            <div className="bg-slate-900/60 border border-slate-800 rounded-xl p-4 text-xs text-slate-400 space-y-1.5">
-              <div className="flex items-center text-slate-300 font-medium gap-1.5">
-                <CheckCircle2 size={14} className="text-emerald-400" />
+            <div className="bg-lavender/70 border-2 border-ink rounded-[12px] p-4 text-xs font-medium text-ink space-y-1.5 shadow-neo-sm">
+              <div className="flex items-center text-ink font-bold gap-1.5">
+                <CheckCircle2 size={16} className="text-mint fill-ink" />
                 <span>Next steps after registration:</span>
               </div>
               <p>1. Administrator reviews and grants verification status.</p>
-              <p>2. Video/Biometric Verification will be required in Module 3 before ballot access.</p>
+              <p>2. Video/Biometric verification will authenticate identity before voting.</p>
             </div>
 
+            {/* One Main Action: Pink Button */}
             <Button
               type="submit"
+              variant="primary"
               fullWidth
               size="lg"
               loading={submitting}
               className="mt-6"
             >
-              Complete Voter Registration <ArrowRight size={18} className="ml-2" />
+              Complete voter registration <ArrowRight size={18} className="ml-2" />
             </Button>
           </form>
 
-          <div className="mt-6 text-center text-sm text-slate-400">
+          <div className="mt-8 text-center text-sm font-semibold text-ink/70">
             Already registered?{' '}
-            <Link to="/voter/login" className="text-indigo-400 hover:text-indigo-300 font-medium">
-              Sign In to Voter Portal
+            <Link to="/voter/login" className="text-violet hover:underline font-bold">
+              Sign in to voter portal
             </Link>
           </div>
         </Card>
 
         <div className="mt-4 text-center">
-          <Link to="/login" className="text-xs text-slate-500 hover:text-slate-400">
+          <Link to="/login" className="text-xs font-bold text-ink/60 hover:text-ink">
             Are you an administrator? Switch to Admin Login →
           </Link>
         </div>

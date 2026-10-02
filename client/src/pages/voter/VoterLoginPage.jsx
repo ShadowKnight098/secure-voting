@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { ShieldCheck, UserCheck, Lock, ArrowRight, UserPlus } from 'lucide-react';
+import { UserCheck, Lock, ArrowRight, UserPlus, Shield } from 'lucide-react';
 import { useVoterAuth } from '../../context/VoterAuthContext';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
@@ -30,34 +30,31 @@ export const VoterLoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-      {/* Background Orbs */}
-      <div className="absolute top-1/4 left-1/3 w-96 h-96 bg-emerald-600/15 rounded-full blur-[120px] pointer-events-none"></div>
-      <div className="absolute bottom-1/4 right-1/3 w-96 h-96 bg-indigo-600/15 rounded-full blur-[120px] pointer-events-none"></div>
-
-      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center relative z-10">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-indigo-500/20 border border-emerald-500/30 mb-4 shadow-xl shadow-emerald-500/10">
-          <UserCheck className="w-8 h-8 text-emerald-400" />
+    <div className="min-h-screen bg-lavender flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 relative text-ink">
+      <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-[14px] bg-violet text-white border-2 border-ink shadow-neo mb-4">
+          <UserCheck className="w-8 h-8 text-sun" />
         </div>
-        <h2 className="text-3xl font-extrabold text-white tracking-tight">Voter Portal</h2>
-        <p className="mt-2 text-sm text-slate-400">
+        <h2 className="text-3xl font-extrabold text-ink tracking-tight">Voter portal</h2>
+        <p className="mt-2 text-sm font-medium text-ink/70">
           Sign in to check verification status and cast your vote
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md relative z-10">
-        <Card className="p-6 sm:p-10">
+      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <Card className="p-6 sm:p-10 shadow-neo-xl">
           {error && (
-            <div className="mb-6 p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm animate-slide-up">
-              {error}
+            <div className="mb-6 p-4 rounded-[12px] bg-coral border-2 border-ink text-ink text-sm font-bold shadow-neo-sm animate-slide-up flex items-center gap-2">
+              <span>⚠️</span>
+              <span>{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-6">
+          <form onSubmit={handleSubmit} className="space-y-5">
             <Input
               id="identifier"
-              label="Voter ID or Registered Email"
-              placeholder="e.g. VOTER-1001 or name@example.com"
+              label="Voter ID or registered email"
+              placeholder="e.g. VOTER-1001 or alice@example.com"
               value={identifier}
               onChange={(e) => setIdentifier(e.target.value)}
               required
@@ -68,39 +65,48 @@ export const VoterLoginPage = () => {
               type="password"
               label="Password"
               icon={Lock}
-              placeholder="Enter your password"
+              placeholder="Enter your voter password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
             />
 
+            {/* One Main Action: Pink Button */}
             <Button
               type="submit"
+              variant="primary"
               fullWidth
               size="lg"
               loading={loading}
               className="mt-6"
             >
-              Sign In to Voter Hub <ArrowRight size={18} className="ml-2" />
+              Sign in to voter hub <ArrowRight size={18} className="ml-2" />
             </Button>
           </form>
 
-          <div className="mt-6 pt-6 border-t border-slate-800 text-center">
-            <p className="text-sm text-slate-400 mb-3">Don't have a voter account?</p>
+          <div className="mt-8 pt-6 border-t-2 border-ink text-center">
+            <p className="text-sm font-semibold text-ink/70 mb-3">Don't have a voter account?</p>
             <Button
+              type="button"
               variant="secondary"
               fullWidth
               onClick={() => navigate('/voter/register')}
               icon={UserPlus}
             >
-              Register as New Voter
+              Register as new voter
             </Button>
           </div>
         </Card>
 
+        {/* Demo Seeded Voters helper */}
+        <div className="mt-6 p-4 rounded-[14px] bg-surface border-2 border-ink shadow-neo-sm text-xs font-medium text-ink flex items-center justify-between">
+          <span>Demo Voter: <strong className="font-bold">VOTER-1001</strong> / <strong className="font-bold">voter123</strong></span>
+          <span className="px-2 py-0.5 rounded-full bg-mint border border-ink text-[10px] font-bold">Verified</span>
+        </div>
+
         <div className="mt-4 text-center">
-          <Link to="/login" className="text-xs text-slate-500 hover:text-slate-400">
-            Administrator Portal →
+          <Link to="/login" className="text-xs font-bold text-violet hover:underline flex items-center justify-center gap-1">
+            <Shield size={12} /> Administrator portal →
           </Link>
         </div>
       </div>

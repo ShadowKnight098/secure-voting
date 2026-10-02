@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, PlusCircle, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { electionService } from '../../services/electionService';
 import Card from '../../components/ui/Card';
@@ -26,9 +26,7 @@ export const ElectionFormPage = () => {
     if (isEdit) {
       const fetchElection = async () => {
         try {
-          const res = await electionService.getById(id);
-          const data = res;
-          // Format dates for input type="datetime-local"
+          const data = await electionService.getById(id);
           const formatDate = (dateStr) => {
             if (!dateStr) return '';
             const d = new Date(dateStr);
@@ -62,7 +60,6 @@ export const ElectionFormPage = () => {
     e.preventDefault();
     setSubmitting(true);
     
-    // Basic validation
     if (new Date(formData.startDate) >= new Date(formData.endDate)) {
       toast.error('End date must be after start date');
       setSubmitting(false);
@@ -92,31 +89,36 @@ export const ElectionFormPage = () => {
   };
 
   if (loading) {
-    return <div className="h-96 rounded-xl animate-skeleton"></div>;
+    return <div className="h-96 rounded-[14px] animate-skeleton max-w-3xl mx-auto"></div>;
   }
 
   return (
-    <div className="max-w-3xl mx-auto animate-slide-up">
+    <div className="max-w-3xl mx-auto animate-slide-up text-ink">
       <button 
         onClick={() => navigate('/admin/elections')}
-        className="flex items-center text-sm text-slate-400 hover:text-white transition-colors mb-6"
+        className="inline-flex items-center text-sm font-bold text-ink bg-surface border-2 border-ink px-3 py-1.5 rounded-[10px] shadow-neo-sm hover:-translate-y-0.5 active:translate-y-0.5 transition-all mb-6"
       >
-        <ArrowLeft size={16} className="mr-2" />
-        Back to Elections
+        <ArrowLeft size={16} className="mr-1.5" />
+        Back to elections
       </button>
 
-      <Card className="p-6 md:p-8">
-        <h2 className="text-2xl font-bold text-white mb-6">
-          {isEdit ? 'Edit Election' : 'Create New Election'}
-        </h2>
+      <Card className="p-6 md:p-8 shadow-neo-xl">
+        <div className="mb-6 pb-4 border-b-2 border-ink">
+          <div className="inline-block px-3 py-1 rounded-full bg-sun border-2 border-ink text-xs font-bold text-ink shadow-neo-sm mb-2">
+            {isEdit ? 'Configuration' : 'New Event'}
+          </div>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-ink">
+            {isEdit ? 'Edit election details' : 'Create new election'}
+          </h2>
+        </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
           <Input
             id="title"
-            label="Election Title"
+            label="Election title"
             value={formData.title}
             onChange={handleChange}
-            placeholder="e.g. Presidential Election 2026"
+            placeholder="e.g. Student Council General Election 2026"
             required
           />
 
@@ -126,7 +128,7 @@ export const ElectionFormPage = () => {
             label="Description"
             value={formData.description}
             onChange={handleChange}
-            placeholder="Provide details about this election..."
+            placeholder="Provide context and guidelines about this election event..."
             rows={4}
             required
           />
@@ -135,7 +137,7 @@ export const ElectionFormPage = () => {
             <Input
               id="startDate"
               type="datetime-local"
-              label="Start Date"
+              label="Voting start date & time"
               value={formData.startDate}
               onChange={handleChange}
               required
@@ -143,7 +145,7 @@ export const ElectionFormPage = () => {
             <Input
               id="endDate"
               type="datetime-local"
-              label="End Date"
+              label="Voting end date & time"
               value={formData.endDate}
               onChange={handleChange}
               required
@@ -154,7 +156,7 @@ export const ElectionFormPage = () => {
             <Input
               id="status"
               type="select"
-              label="Status"
+              label="Election status"
               value={formData.status}
               onChange={handleChange}
               required
@@ -166,12 +168,22 @@ export const ElectionFormPage = () => {
             </Input>
           )}
 
-          <div className="pt-4 flex justify-end gap-4 border-t border-slate-800">
-            <Button type="button" variant="ghost" onClick={() => navigate('/admin/elections')} disabled={submitting}>
+          <div className="pt-6 flex justify-end gap-4 border-t-2 border-ink">
+            <Button 
+              type="button" 
+              variant="secondary" 
+              onClick={() => navigate('/admin/elections')} 
+              disabled={submitting}
+            >
               Cancel
             </Button>
-            <Button type="submit" loading={submitting}>
-              {isEdit ? 'Save Changes' : 'Create Election'}
+            {/* One Main Pink Action */}
+            <Button 
+              type="submit" 
+              variant="primary"
+              loading={submitting}
+            >
+              {isEdit ? 'Save changes' : 'Create election'}
             </Button>
           </div>
         </form>

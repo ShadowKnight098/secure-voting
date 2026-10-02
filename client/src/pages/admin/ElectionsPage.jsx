@@ -18,7 +18,7 @@ export const ElectionsPage = () => {
   const [elections, setElections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const debouncedSearch = useDebounce(searchTerm, 500);
+  const debouncedSearch = useDebounce(searchTerm, 400);
   const [statusFilter, setStatusFilter] = useState('All');
   
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, id: null, title: '' });
@@ -28,11 +28,11 @@ export const ElectionsPage = () => {
     setLoading(true);
     try {
       const params = {
-        search: debouncedSearch,
+        search: debouncedSearch || undefined,
         status: statusFilter === 'All' ? undefined : statusFilter.toLowerCase(),
       };
       const res = await electionService.getAll(params);
-      setElections(res.data);
+      setElections(res.data || []);
     } catch (err) {
       toast.error('Failed to fetch elections');
     } finally {
@@ -59,23 +59,28 @@ export const ElectionsPage = () => {
   };
 
   const formatDate = (dateStr) => {
+    if (!dateStr) return 'N/A';
     return new Intl.DateTimeFormat('en-US', {
       month: 'short', day: 'numeric', year: 'numeric'
     }).format(new Date(dateStr));
   };
 
   return (
-    <div className="space-y-6 animate-fade-in">
+    <div className="space-y-6 animate-fade-in text-ink">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-        <h2 className="text-2xl font-bold text-white">Manage Elections</h2>
-        <Button onClick={() => navigate('/admin/elections/new')} icon={Plus}>
-          Create Election
+        <div>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">Manage elections</h2>
+          <p className="text-ink/70 font-medium text-sm mt-1">Configure election timelines, candidate rosters, and statuses.</p>
+        </div>
+        {/* One Main Pink Action */}
+        <Button variant="primary" onClick={() => navigate('/admin/elections/new')} icon={Plus}>
+          Create election
         </Button>
       </div>
 
       <Card className="p-4 sm:p-6">
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="w-full md:w-96">
+        <div className="flex flex-col md:flex-row gap-4 mb-6 justify-between items-stretch md:items-center">
+          <div className="w-full md:w-80">
             <Input 
               icon={Search} 
               placeholder="Search elections..." 
@@ -83,16 +88,16 @@ export const ElectionsPage = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
-          <div className="flex overflow-x-auto pb-2 md:pb-0 hide-scrollbar gap-2">
+          <div className="flex overflow-x-auto pb-2 md:pb-0 gap-2">
             {statusTabs.map(tab => (
               <button
                 key={tab}
                 onClick={() => setStatusFilter(tab)}
                 className={`
-                  px-4 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-colors
+                  px-4 py-2 rounded-[12px] text-xs sm:text-sm font-bold whitespace-nowrap transition-all border-2 border-ink
                   ${statusFilter === tab 
-                    ? 'bg-indigo-500/20 text-indigo-400 border border-indigo-500/30' 
-                    : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700 border border-transparent'
+                    ? 'bg-sun text-ink font-extrabold shadow-neo-sm -translate-y-0.5' 
+                    : 'bg-surface text-ink hover:bg-lavender hover:shadow-neo-sm'
                   }
                 `}
               >
@@ -103,70 +108,64 @@ export const ElectionsPage = () => {
         </div>
 
         {loading ? (
-          <div className="space-y-4">
-            {[1,2,3].map(i => <div key={i} className="h-20 rounded-lg animate-skeleton"></div>)}
+          <div className="space-y-3">
+            {[1,2,3].map(i => <div key={i} className="h-16 rounded-[12px] animate-skeleton"></div>)}
           </div>
         ) : elections.length === 0 ? (
           <EmptyState 
             title="No elections found" 
             description="Get started by creating a new election event."
-            actionLabel="Create Election"
+            actionLabel="Create election"
             onAction={() => navigate('/admin/elections/new')}
           />
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse min-w-[800px]">
+            <table className="w-full text-left border-collapse min-w-[760px]">
               <thead>
-                <tr className="border-b border-slate-700/50 text-sm text-slate-400">
-                  <th className="pb-3 px-4 font-medium">Title</th>
-                  <th className="pb-3 px-4 font-medium">Status</th>
-                  <th className="pb-3 px-4 font-medium">Duration</th>
-                  <th className="pb-3 px-4 font-medium text-center">Candidates</th>
-                  <th className="pb-3 px-4 font-medium text-right">Actions</th>
+                <tr className="bg-lavender border-b-2 border-ink text-xs font-extrabold uppercase text-ink tracking-wider">
+                  <th className="py-3.5 px-4">Title</th>
+                  <th className="py-3.5 px-4">Status</th>
+                  <th className="py-3.5 px-4">Duration</th>
+                  <th className="py-3.5 px-4 text-center">Candidates</th>
+                  <th className="py-3.5 px-4 text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y-2 divide-ink text-sm">
                 {elections.map(election => (
-                  <tr key={election.id} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors group">
-                    <td className="py-4 px-4 font-medium text-white">{election.title}</td>
+                  <tr key={election.id} className="hover:bg-lavender/60 transition-colors group">
+                    <td className="py-4 px-4 font-bold text-ink text-base">{election.title}</td>
                     <td className="py-4 px-4"><Badge status={election.status} /></td>
-                    <td className="py-4 px-4 text-sm text-slate-300">
-                      {formatDate(election.startDate)} - {formatDate(election.endDate)}
+                    <td className="py-4 px-4 text-sm font-semibold text-ink/85">
+                      {formatDate(election.startDate)} – {formatDate(election.endDate)}
                     </td>
                     <td className="py-4 px-4 text-center">
-                      <span className="inline-flex items-center justify-center bg-slate-800 text-slate-300 rounded-full h-8 px-3 text-sm border border-slate-700">
+                      <span className="inline-flex items-center justify-center bg-surface text-ink font-mono font-bold rounded-full h-8 px-3 text-xs border-2 border-ink shadow-neo-sm">
                         {election.candidateCount || 0}
                       </span>
                     </td>
                     <td className="py-4 px-4 text-right">
-                      <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                      <div className="flex justify-end gap-2">
+                        <button 
                           onClick={() => navigate(`/admin/elections/${election.id}/candidates`)}
                           title="Manage Candidates"
-                          className="px-2"
+                          className="p-2 rounded-[10px] bg-surface border-2 border-ink shadow-neo-sm text-ink hover:bg-lavender hover:-translate-y-0.5 active:translate-y-0.5 transition-all"
                         >
-                          <Eye size={18} />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                          <Eye size={16} />
+                        </button>
+                        <button 
                           onClick={() => navigate(`/admin/elections/${election.id}/edit`)}
                           title="Edit Election"
-                          className="px-2"
+                          className="p-2 rounded-[10px] bg-surface border-2 border-ink shadow-neo-sm text-ink hover:bg-lavender hover:-translate-y-0.5 active:translate-y-0.5 transition-all"
                         >
-                          <Edit2 size={18} />
-                        </Button>
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                          <Edit2 size={16} />
+                        </button>
+                        <button 
                           onClick={() => setDeleteDialog({ isOpen: true, id: election.id, title: election.title })}
-                          className="text-red-400 hover:text-red-300 hover:bg-red-400/10 px-2"
-                          title="Delete"
+                          className="p-2 rounded-[10px] bg-coral border-2 border-ink shadow-neo-sm text-ink hover:-translate-y-0.5 active:translate-y-0.5 transition-all"
+                          title="Delete Election"
                         >
-                          <Trash2 size={18} />
-                        </Button>
+                          <Trash2 size={16} />
+                        </button>
                       </div>
                     </td>
                   </tr>
@@ -182,7 +181,7 @@ export const ElectionsPage = () => {
         onClose={() => !isDeleting && setDeleteDialog({ isOpen: false, id: null, title: '' })}
         onConfirm={handleDelete}
         title="Delete Election"
-        message={`Are you sure you want to delete "${deleteDialog.title}"? This action cannot be undone and will remove all associated candidates and votes.`}
+        message={`Are you sure you want to delete "${deleteDialog.title}"? This action cannot be undone and will remove all associated candidates.`}
         isLoading={isDeleting}
       />
     </div>

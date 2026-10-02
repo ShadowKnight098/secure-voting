@@ -36,28 +36,31 @@ export const DashboardPage = () => {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="h-8 w-48 rounded animate-skeleton mb-8"></div>
+        <div className="h-8 w-48 rounded-[10px] animate-skeleton mb-8"></div>
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-          {[1,2,3,4].map(i => <div key={i} className="h-32 rounded-xl animate-skeleton"></div>)}
+          {[1,2,3,4].map(i => <div key={i} className="h-36 rounded-[14px] animate-skeleton"></div>)}
         </div>
-        <div className="h-96 rounded-xl animate-skeleton mt-8"></div>
+        <div className="h-96 rounded-[14px] animate-skeleton mt-8"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 animate-fade-in">
+    <div className="space-y-8 animate-fade-in text-ink">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-bold text-white">Hello, {user?.username} 👋</h2>
-          <p className="text-slate-400 mt-1">Here's an overview of the electronic voting system.</p>
+          <h2 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">
+            Hello, {user?.username} 👋
+          </h2>
+          <p className="text-ink/70 font-medium text-sm mt-1">Here's what's happening across elections today.</p>
         </div>
-        <div className="flex gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <Button variant="secondary" onClick={() => navigate('/admin/voters')} icon={UsersRound}>
-            Manage Voters
+            Manage voters
           </Button>
-          <Button onClick={() => navigate('/admin/elections/new')} icon={Plus}>
-            Create Election
+          {/* One Main Pink Action */}
+          <Button variant="primary" onClick={() => navigate('/admin/elections/new')} icon={Plus}>
+            Create election
           </Button>
         </div>
       </div>
@@ -65,113 +68,114 @@ export const DashboardPage = () => {
       {/* Main Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
         <StatsCard 
-          title="Total Elections" 
+          title="Total elections" 
           value={stats?.totalElections || 0} 
           icon={Vote} 
-          color="indigo" 
         />
         <StatsCard 
-          title="Active Elections" 
+          title="Active elections" 
           value={stats?.activeElections || 0} 
           icon={Activity} 
-          color="emerald" 
-          trend="up"
           trendValue={`${stats?.upcomingElections || 0} upcoming`}
         />
         <StatsCard 
-          title="Total Candidates" 
+          title="Total candidates" 
           value={stats?.totalCandidates || 0} 
           icon={Users} 
-          color="blue" 
         />
         <StatsCard 
-          title="Registered Voters" 
+          title="Registered voters" 
           value={stats?.totalVoters?.toLocaleString() || 0} 
           icon={UsersRound} 
-          color="violet" 
-          trend="up"
           trendValue={`${stats?.verifiedVoters || 0} verified`}
         />
       </div>
 
       {/* Voter Verification Breakdown Banner */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <Card className="p-5 flex items-center justify-between bg-slate-900/60 border-slate-800">
+        <Card className="p-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <UserCheck size={20} />
+            <div className="w-12 h-12 rounded-[12px] bg-mint border-2 border-ink shadow-neo-sm flex items-center justify-center text-ink">
+              <UserCheck size={22} />
             </div>
             <div>
-              <p className="text-xs text-slate-400 font-medium">Verified Voters</p>
-              <p className="text-xl font-bold text-white">{stats?.verifiedVoters || 0}</p>
+              <p className="text-xs font-bold text-ink/70">Verified voters</p>
+              <p className="text-2xl font-extrabold text-ink">{stats?.verifiedVoters || 0}</p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/admin/voters')}>
-            View <ChevronRight size={14} />
+          <Button variant="secondary" size="sm" onClick={() => navigate('/admin/voters')}>
+            View <ChevronRight size={14} className="ml-1" />
           </Button>
         </Card>
 
-        <Card className="p-5 flex items-center justify-between bg-slate-900/60 border-slate-800">
+        <Card className="p-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-amber-500/10 text-amber-400 border border-amber-500/20">
-              <Clock size={20} />
+            <div className="w-12 h-12 rounded-[12px] bg-sun border-2 border-ink shadow-neo-sm flex items-center justify-center text-ink">
+              <Clock size={22} />
             </div>
             <div>
-              <p className="text-xs text-slate-400 font-medium">Pending Verification</p>
-              <p className="text-xl font-bold text-amber-400">{stats?.pendingVoters || 0}</p>
+              <p className="text-xs font-bold text-ink/70">Pending verification</p>
+              <p className="text-2xl font-extrabold text-ink">{stats?.pendingVoters || 0}</p>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/admin/voters')}>
-            Verify <ChevronRight size={14} />
+          <Button variant="primary" size="sm" onClick={() => navigate('/admin/voters')}>
+            Review <ChevronRight size={14} className="ml-1" />
           </Button>
         </Card>
 
-        <Card className="p-5 flex items-center justify-between bg-slate-900/60 border-slate-800">
+        <Card className="p-5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-              <Vote size={20} />
+            <div className="w-12 h-12 rounded-[12px] bg-sky border-2 border-ink shadow-neo-sm flex items-center justify-center text-ink">
+              <Vote size={22} />
             </div>
             <div>
-              <p className="text-xs text-slate-400 font-medium">Ballots Cast</p>
-              <p className="text-xl font-bold text-white">{stats?.votedCount || 0}</p>
+              <p className="text-xs font-bold text-ink/70">Ballots cast</p>
+              <p className="text-2xl font-extrabold text-ink">{stats?.votedCount || 0}</p>
             </div>
           </div>
-          <span className="text-xs text-slate-500">Module 4 Ready</span>
+          <span className="px-2.5 py-1 rounded-full bg-lavender border-2 border-ink text-xs font-bold text-ink shadow-neo-sm">
+            Module 4
+          </span>
         </Card>
       </div>
 
+      {/* Recent Elections Table Card */}
       <Card className="p-6">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-white">Recent Elections</h3>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/admin/elections')}>
-            View All <ChevronRight size={16} className="ml-1" />
+        <div className="flex items-center justify-between mb-6 pb-4 border-b-2 border-ink">
+          <h3 className="text-xl font-bold text-ink">Recent elections</h3>
+          <Button variant="secondary" size="sm" onClick={() => navigate('/admin/elections')}>
+            View all <ChevronRight size={16} className="ml-1" />
           </Button>
         </div>
         
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="border-b border-slate-700/50 text-sm font-medium text-slate-400">
-                <th className="pb-3 pr-4 font-medium">Election Name</th>
-                <th className="pb-3 px-4 font-medium">Status</th>
-                <th className="pb-3 px-4 font-medium text-right">Candidates</th>
+              <tr className="bg-lavender border-b-2 border-ink text-xs font-extrabold uppercase text-ink tracking-wider">
+                <th className="py-3.5 px-4">Election title</th>
+                <th className="py-3.5 px-4">Status</th>
+                <th className="py-3.5 px-4 text-right">Candidates</th>
               </tr>
             </thead>
-            <tbody className="text-sm">
+            <tbody className="text-sm divide-y-2 divide-ink">
               {recentElections.length === 0 ? (
                 <tr>
-                  <td colSpan="3" className="py-8 text-center text-slate-500">
+                  <td colSpan="3" className="py-8 text-center text-ink/70 font-medium">
                     No recent elections found.
                   </td>
                 </tr>
               ) : (
                 recentElections.map(election => (
-                  <tr key={election.id} className="border-b border-slate-800/50 hover:bg-slate-800/30 transition-colors">
-                    <td className="py-4 pr-4 font-medium text-white">{election.title}</td>
+                  <tr key={election.id} className="hover:bg-lavender/60 transition-colors">
+                    <td className="py-4 px-4 font-bold text-ink">{election.title}</td>
                     <td className="py-4 px-4">
                       <Badge status={election.status} />
                     </td>
-                    <td className="py-4 px-4 text-right text-slate-300">{election.participants}</td>
+                    <td className="py-4 px-4 text-right">
+                      <span className="inline-flex items-center justify-center px-3 py-0.5 rounded-full bg-lavender/80 border-2 border-ink font-mono font-bold text-xs shadow-neo-sm">
+                        {election.participants}
+                      </span>
+                    </td>
                   </tr>
                 ))
               )}
