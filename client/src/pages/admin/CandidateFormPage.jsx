@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Upload, X, User } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { candidateService } from '../../services/candidateService';
+import { partyService } from '../../services/partyService';
 import Card from '../../components/ui/Card';
 import Input from '../../components/ui/Input';
 import Button from '../../components/ui/Button';
@@ -13,7 +14,8 @@ export const CandidateFormPage = () => {
   const navigate = useNavigate();
   const fileInputRef = useRef(null);
 
-  const [loading, setLoading] = useState(isEdit);
+  const [loading, setLoading] = useState(true);
+  const [parties, setParties] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
@@ -24,9 +26,12 @@ export const CandidateFormPage = () => {
   const [photoPreview, setPhotoPreview] = useState(null);
 
   useEffect(() => {
-    if (isEdit) {
-      const fetchCandidate = async () => {
-        try {
+    const initData = async () => {
+      try {
+        const partyList = await partyService.getAll();
+        setParties(partyList || []);
+
+        if (isEdit) {
           const data = await candidateService.getById(electionId, candidateId);
           setFormData({
             name: data.name || '',
@@ -34,15 +39,18 @@ export const CandidateFormPage = () => {
             bio: data.bio || ''
           });
           if (data.photoUrl) setPhotoPreview(data.photoUrl);
-        } catch (err) {
-          toast.error('Failed to load candidate details');
-          navigate(`/admin/elections/${electionId}/candidates`);
-        } finally {
-          setLoading(false);
+        } else if (partyList && partyList.length > 0) {
+          setFormData(prev => ({ ...prev, party: partyList[0].name }));
         }
-      };
-      fetchCandidate();
-    }
+      } catch (err) {
+        toast.error('Failed to load candidate or party details');
+        if (isEdit) navigate(`/admin/elections/${electionId}/candidates`);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    initData();
   }, [electionId, candidateId, navigate, isEdit]);
 
   const handleChange = (e) => {
@@ -177,14 +185,53 @@ export const CandidateFormPage = () => {
               required
             />
 
-            <Input
-              id="party"
-              label="Political party / affiliation"
-              value={formData.party}
-              onChange={handleChange}
-              placeholder="e.g. Independent or Student Union"
-              required
-            />
+            <div>
+              <label className="block text-xs font-extrabold uppercase text-ink mb-1.5">
+                Political party / affiliation <span className="text-coral">*</span>
+              </label>
+
+              {parties.length > 0 ? (
+                <div className="space-y-2">
+                  <select
+                    id="party"
+                    value={parties.some(p => p.name === formData.party) ? formData.party : '__other__'}
+                    onChange={(e) => {
+                      if (e.target.value === '__other__') {
+                        setFormData(prev => ({ ...prev, party: '' }));
+                      } else {
+                        setFormData(prev => ({ ...prev, party: e.target.value }));
+                      }
+                    }}
+                    className="w-full px-3.5 py-2.5 bg-surface border-2 border-ink rounded-[10px] text-sm font-bold text-ink focus:outline-none focus:ring-2 focus:ring-violet shadow-neo-sm"
+                  >
+                    {parties.map(p => (
+                      <option key={p.id} value={p.name}>
+                        {p.name} {p.code ? `(${p.code})` : ''}
+                      </option>
+                    ))}
+                    <option value="__other__">+ Enter Custom Party...</option>
+                  </select>
+
+                  {(!parties.some(p => p.name === formData.party) || formData.party === '') && (
+                    <Input
+                      id="custom_party"
+                      placeholder="Type custom party name..."
+                      value={formData.party}
+                      onChange={(e) => setFormData(prev => ({ ...prev, party: e.target.value }))}
+                      required
+                    />
+                  )}
+                </div>
+              ) : (
+                <Input
+                  id="party"
+                  value={formData.party}
+                  onChange={handleChange}
+                  placeholder="e.g. Liberty Alliance or Independent"
+                  required
+                />
+              )}
+            </div>
 
             <Input
               id="bio"

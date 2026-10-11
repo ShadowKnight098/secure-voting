@@ -7,6 +7,7 @@ import ElectionFormPage from './pages/admin/ElectionFormPage';
 import CandidatesPage from './pages/admin/CandidatesPage';
 import CandidateFormPage from './pages/admin/CandidateFormPage';
 import VotersPage from './pages/admin/VotersPage';
+import PartiesPage from './pages/admin/PartiesPage';
 import VoterLoginPage from './pages/voter/VoterLoginPage';
 import VoterRegisterPage from './pages/voter/VoterRegisterPage';
 import VoterDashboardPage from './pages/voter/VoterDashboardPage';
@@ -99,6 +100,7 @@ function App() {
         <Route path="elections/:electionId/candidates/:candidateId/edit" element={<CandidateFormPage />} />
 
         <Route path="voters" element={<VotersPage />} />
+        <Route path="parties" element={<PartiesPage />} />
       </Route>
       
       {/* Root Redirection */}

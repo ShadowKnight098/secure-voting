@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Vote, Activity, UsersRound, Plus, ChevronRight, UserCheck, Clock } from 'lucide-react';
+import { Users, Vote, Activity, UsersRound, Plus, ChevronRight, UserCheck, Clock, Building2 } from 'lucide-react';
 import { dashboardService } from '../../services/dashboardService';
 import { useAuth } from '../../context/AuthContext';
 import StatsCard from '../../components/ui/StatsCard';
@@ -55,6 +55,9 @@ export const DashboardPage = () => {
           <p className="text-ink/70 font-medium text-sm mt-1">Here's what's happening across elections today.</p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
+          <Button variant="secondary" onClick={() => navigate('/admin/parties')} icon={Building2}>
+            Manage parties
+          </Button>
           <Button variant="secondary" onClick={() => navigate('/admin/voters')} icon={UsersRound}>
             Manage voters
           </Button>

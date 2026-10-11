@@ -12,6 +12,7 @@ import dashboardRoutes from './routes/dashboardRoutes.js';
 import voterRoutes from './routes/voterRoutes.js';
 import adminVoterRoutes from './routes/adminVoterRoutes.js';
 import voteRoutes from './routes/voteRoutes.js';
+import partyRoutes from './routes/partyRoutes.js';
 import { errorHandler } from './middleware/errorHandler.js';
 
 dotenv.config();
@@ -50,6 +51,7 @@ app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/voter', voterRoutes);
 app.use('/api/voters', adminVoterRoutes);
 app.use('/api/votes', voteRoutes);
+app.use('/api/parties', partyRoutes);
 
 app.use(errorHandler);
 

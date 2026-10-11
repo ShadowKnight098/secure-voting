@@ -88,6 +88,24 @@ export const castVote = (req, res) => {
       return errorResponse(res, 'Invalid candidate selection for this election', 400);
     }
 
+    // 4b. Mandatory Facial Biometric Verification Token Validation
+    if (!ballot_token) {
+      return errorResponse(res, 'Facial biometric verification is required before casting your ballot. Please complete the face scan.', 403);
+    }
+
+    try {
+      const secret = process.env.JWT_SECRET || 'voting-system-secret-key-2024';
+      const decoded = jwt.verify(ballot_token, secret);
+      if (!decoded || !decoded.verified_biometrics || decoded.voter_id !== voterId) {
+        return errorResponse(res, 'Biometric verification token is invalid or does not match this voter. Vote rejected.', 403);
+      }
+      if (decoded.election_id && parseInt(decoded.election_id, 10) !== parseInt(election_id, 10)) {
+        return errorResponse(res, 'Biometric verification token was not issued for this election.', 403);
+      }
+    } catch (tokenErr) {
+      return errorResponse(res, 'Facial verification session has expired or is invalid. Please re-authenticate your face to cast vote.', 403);
+    }
+
     // 5. Cryptographic Encrypted Vote Generation
     const salt = crypto.randomBytes(16).toString('hex');
     const votePayload = JSON.stringify({

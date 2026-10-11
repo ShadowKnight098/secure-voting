@@ -7,7 +7,6 @@ import {
   AlertTriangle, 
   ShieldCheck, 
   VideoOff, 
-  Sparkles,
   Lock
 } from 'lucide-react';
 import Modal from '../ui/Modal';
@@ -130,13 +129,15 @@ export const FaceVerificationModal = ({ isOpen, onClose, electionId, onVerified 
       if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) return;
 
       try {
-        const detection = await faceapi
-          .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
+        const detections = await faceapi
+          .detectAllFaces(videoRef.current, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.60 }))
           .withFaceLandmarks()
-          .withFaceDescriptor();
+          .withFaceDescriptors();
 
-        if (detection && detection.descriptor) {
+        if (detections && detections.length === 1) {
+          const singleDetection = detections[0];
           setFaceDetected(true);
+          setErrorMessage('');
 
           if (canvasRef.current && videoRef.current) {
             const displaySize = {
@@ -144,7 +145,7 @@ export const FaceVerificationModal = ({ isOpen, onClose, electionId, onVerified 
               height: videoRef.current.videoHeight || 480
             };
             faceapi.matchDimensions(canvasRef.current, displaySize);
-            const resized = faceapi.resizeResults(detection, displaySize);
+            const resized = faceapi.resizeResults(singleDetection, displaySize);
             const ctx = canvasRef.current.getContext('2d');
             ctx.clearRect(0, 0, displaySize.width, displaySize.height);
 
@@ -152,6 +153,13 @@ export const FaceVerificationModal = ({ isOpen, onClose, electionId, onVerified 
             ctx.lineWidth = 3;
             ctx.strokeStyle = '#22C55E';
             ctx.strokeRect(box.x, box.y, box.width, box.height);
+          }
+        } else if (detections && detections.length > 1) {
+          setFaceDetected(false);
+          setErrorMessage(`Multiple faces detected (${detections.length}). Only 1 voter allowed in the frame!`);
+          if (canvasRef.current) {
+            const ctx = canvasRef.current.getContext('2d');
+            ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
           }
         } else {
           setFaceDetected(false);
@@ -161,7 +169,7 @@ export const FaceVerificationModal = ({ isOpen, onClose, electionId, onVerified 
           }
         }
       } catch (err) {
-        // Silently retry
+        // Silently retry next frame
       }
     };
 
@@ -179,18 +187,32 @@ export const FaceVerificationModal = ({ isOpen, onClose, electionId, onVerified 
     setErrorMessage('');
 
     try {
-      const detection = await faceapi
-        .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
+      // Re-scan synchronously at moment of verification
+      const detections = await faceapi
+        .detectAllFaces(videoRef.current, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.65 }))
         .withFaceLandmarks()
-        .withFaceDescriptor();
+        .withFaceDescriptors();
 
-      if (!detection || !detection.descriptor) {
-        setErrorMessage('No clear face detected! Please look directly into the camera lens.');
+      if (!detections || detections.length === 0) {
+        setErrorMessage('No human face detected! Please position your face directly in the frame.');
         setVerifying(false);
         return;
       }
 
-      const liveDescriptor = Array.from(detection.descriptor);
+      if (detections.length > 1) {
+        setErrorMessage(`Multiple faces detected (${detections.length}). Security violation: only the voter is permitted.`);
+        setVerifying(false);
+        return;
+      }
+
+      const singleFace = detections[0];
+      if (!singleFace.descriptor || singleFace.descriptor.length !== 128) {
+        setErrorMessage('Facial biometric landmarks could not be clearly resolved. Improve lighting.');
+        setVerifying(false);
+        return;
+      }
+
+      const liveDescriptor = Array.from(singleFace.descriptor);
 
       // Call backend biometric verification API
       const response = await voterService.verifyFace({
@@ -207,42 +229,12 @@ export const FaceVerificationModal = ({ isOpen, onClose, electionId, onVerified 
           onVerified(response.data.ballotToken);
         }, 1200);
       } else {
-        setErrorMessage(response.message || 'Face does not match registered biometric record.');
+        setErrorMessage(response.message || 'FACE MISMATCH: Biometric verification failed! Face does not match registered voter profile.');
       }
     } catch (err) {
       console.error('Verification error:', err);
-      const msg = err.response?.data?.message || 'Biometric verification failed. Please ensure proper lighting and face alignment.';
+      const msg = err.response?.data?.message || 'Biometric verification failed. Face does not match registered voter profile.';
       setErrorMessage(msg);
-    } finally {
-      setVerifying(false);
-    }
-  };
-
-  // Fallback demo verification in case camera is blocked
-  const handleDemoVerify = async () => {
-    setVerifying(true);
-    setErrorMessage('');
-    try {
-      // Fetch registered descriptor and send with small variation
-      const res = await voterService.getFaceDescriptor();
-      if (res?.descriptor) {
-        // Add tiny variation for realistic Euclidean distance ~0.05
-        const liveDesc = res.descriptor.map(v => v + (Math.random() * 0.02 - 0.01));
-        const verifyRes = await voterService.verifyFace({
-          live_descriptor: liveDesc,
-          election_id: electionId
-        });
-
-        if (verifyRes.success) {
-          stopCamera();
-          setVerificationResult(verifyRes.data);
-          setTimeout(() => {
-            onVerified(verifyRes.data.ballotToken);
-          }, 1200);
-        }
-      }
-    } catch (err) {
-      setErrorMessage(err.response?.data?.message || 'Failed demo verification.');
     } finally {
       setVerifying(false);
     }
@@ -291,16 +283,16 @@ export const FaceVerificationModal = ({ isOpen, onClose, electionId, onVerified 
             </div>
           </div>
         ) : cameraError ? (
-          /* Camera Error / Fallback View */
+          /* Camera Error View */
           <div className="p-5 bg-lavender/40 border-2 border-ink rounded-[14px] text-center space-y-3">
             <VideoOff size={32} className="mx-auto text-coral" />
             <h4 className="font-extrabold text-sm">{cameraError}</h4>
             <p className="text-xs font-medium text-ink/70">
-              For testing or environments without a physical webcam, use the verified biometric bypass.
+              Live webcam access is required to authenticate your biometric identity. Please ensure camera permissions are granted.
             </p>
             <div className="pt-2 flex justify-center gap-3">
-              <Button variant="primary" size="sm" onClick={handleDemoVerify} loading={verifying}>
-                <Sparkles size={14} className="mr-1.5" /> Authenticate with registered biometric profile
+              <Button variant="secondary" size="sm" onClick={startCamera}>
+                <RefreshCw size={14} className="mr-1.5" /> Retry Camera
               </Button>
             </div>
           </div>
@@ -371,23 +363,12 @@ export const FaceVerificationModal = ({ isOpen, onClose, electionId, onVerified 
               <div className="flex items-center gap-2 w-full sm:w-auto">
                 <Button
                   type="button"
-                  variant="secondary"
-                  size="sm"
-                  onClick={handleDemoVerify}
-                  disabled={verifying}
-                  title="Use registered biometric descriptor in dev mode"
-                >
-                  Quick Verify
-                </Button>
-
-                <Button
-                  type="button"
                   variant="primary"
                   size="md"
                   onClick={handleVerify}
                   disabled={!faceDetected || verifying || !modelsLoaded}
                   loading={verifying}
-                  className="flex-1 sm:flex-initial shadow-neo-md"
+                  className="w-full sm:w-auto shadow-neo-md"
                 >
                   <ShieldCheck size={16} className="mr-1.5" /> Verify & Unlock Ballot
                 </Button>
