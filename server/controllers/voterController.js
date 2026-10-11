@@ -184,3 +184,87 @@ export const getAvailableElections = (req, res) => {
     return errorResponse(res, 'Failed to fetch available elections', 500, error);
   }
 };
+
+export const getFaceDescriptor = (req, res) => {
+  try {
+    const voterId = req.user.id;
+    const faceRow = db.prepare('SELECT face_descriptor, photo_url FROM face_data WHERE voter_id = ?').get(voterId);
+    if (!faceRow || !faceRow.face_descriptor) {
+      return errorResponse(res, 'No registered face biometric data found for this voter', 404);
+    }
+    const descriptor = JSON.parse(faceRow.face_descriptor);
+    return successResponse(res, { descriptor, photo_url: faceRow.photo_url }, 'Face descriptor retrieved');
+  } catch (error) {
+    return errorResponse(res, 'Failed to fetch face descriptor', 500, error);
+  }
+};
+
+export const verifyFace = (req, res) => {
+  try {
+    const voterId = req.user.id;
+    const { live_descriptor, election_id } = req.body;
+
+    if (!live_descriptor || !Array.isArray(live_descriptor) || live_descriptor.length === 0) {
+      return errorResponse(res, 'Valid live face biometric descriptor is required', 400);
+    }
+
+    const voter = db.prepare('SELECT * FROM voters WHERE id = ?').get(voterId);
+    if (!voter) {
+      return errorResponse(res, 'Voter not found', 404);
+    }
+
+    if (voter.is_verified !== 1) {
+      return errorResponse(res, 'Voter account is not yet verified by an administrator', 403);
+    }
+
+    if (voter.has_voted === 1) {
+      return errorResponse(res, 'You have already cast your ballot for this election', 400);
+    }
+
+    const faceRow = db.prepare('SELECT face_descriptor FROM face_data WHERE voter_id = ?').get(voterId);
+    if (!faceRow || !faceRow.face_descriptor) {
+      return errorResponse(res, 'No registered facial biometric record found. Please contact administration.', 404);
+    }
+
+    const registeredDescriptor = JSON.parse(faceRow.face_descriptor);
+
+    // Compute Euclidean Distance
+    let sumSquaredDiff = 0;
+    for (let i = 0; i < Math.min(registeredDescriptor.length, live_descriptor.length); i++) {
+      const diff = registeredDescriptor[i] - live_descriptor[i];
+      sumSquaredDiff += diff * diff;
+    }
+    const distance = Math.sqrt(sumSquaredDiff);
+
+    // Standard face-api distance: <= 0.58 is high confidence match
+    const isMatch = distance <= 0.58;
+    const confidenceScore = Math.max(10, Math.min(99, Math.round((1 - distance / 0.8) * 100)));
+
+    if (!isMatch) {
+      return errorResponse(res, `Face verification failed. Match distance (${distance.toFixed(3)}) exceeds threshold. Please align your face directly to the camera with clear lighting.`, 401, { distance, confidenceScore });
+    }
+
+    // Generate signed ballot access token
+    const secret = process.env.JWT_SECRET || 'voting-system-secret-key-2024';
+    const ballotToken = jwt.sign(
+      {
+        voter_id: voterId,
+        election_id: election_id || voter.election_id,
+        verified_biometrics: true,
+        role: 'verified_voter'
+      },
+      secret,
+      { expiresIn: '30m' }
+    );
+
+    return successResponse(res, {
+      verified: true,
+      distance: Number(distance.toFixed(4)),
+      confidenceScore,
+      ballotToken,
+      message: 'Facial identity verified successfully! You may now cast your vote.'
+    }, 'Biometric verification successful');
+  } catch (error) {
+    return errorResponse(res, 'Face verification processing failed', 500, error);
+  }
+};

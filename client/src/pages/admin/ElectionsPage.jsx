@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Search, Eye, Edit2, Trash2 } from 'lucide-react';
+import { Plus, Search, Eye, Edit2, Trash2, BarChart2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { electionService } from '../../services/electionService';
 import { useDebounce } from '../../hooks/useDebounce';
@@ -145,6 +145,13 @@ export const ElectionsPage = () => {
                     </td>
                     <td className="py-4 px-4 text-right">
                       <div className="flex justify-end gap-2">
+                        <button 
+                          onClick={() => navigate(`/elections/${election.id}/results`)}
+                          title="View Results & Analytics"
+                          className="p-2 rounded-[10px] bg-sun border-2 border-ink shadow-neo-sm text-ink hover:-translate-y-0.5 active:translate-y-0.5 transition-all"
+                        >
+                          <BarChart2 size={16} />
+                        </button>
                         <button 
                           onClick={() => navigate(`/admin/elections/${election.id}/candidates`)}
                           title="Manage Candidates"

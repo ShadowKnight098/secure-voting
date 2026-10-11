@@ -10,6 +10,9 @@ import VotersPage from './pages/admin/VotersPage';
 import VoterLoginPage from './pages/voter/VoterLoginPage';
 import VoterRegisterPage from './pages/voter/VoterRegisterPage';
 import VoterDashboardPage from './pages/voter/VoterDashboardPage';
+import VoterBallotPage from './pages/voter/VoterBallotPage';
+import VoteReceiptPage from './pages/voter/VoteReceiptPage';
+import ElectionResultsPage from './pages/ElectionResultsPage';
 import AppLayout from './components/layout/AppLayout';
 import { useAuth } from './context/AuthContext';
 import { useVoterAuth } from './context/VoterAuthContext';
@@ -64,6 +67,19 @@ function App() {
           <VoterDashboardPage />
         </VoterProtectedRoute>
       } />
+      <Route path="/voter/ballot/:electionId" element={
+        <VoterProtectedRoute>
+          <VoterBallotPage />
+        </VoterProtectedRoute>
+      } />
+      <Route path="/voter/receipt/:electionId" element={
+        <VoterProtectedRoute>
+          <VoteReceiptPage />
+        </VoterProtectedRoute>
+      } />
+
+      {/* Shared Results Page (Accessible to verified voters & admins) */}
+      <Route path="/elections/:id/results" element={<ElectionResultsPage />} />
 
       {/* Admin Protected Routes */}
       <Route path="/admin" element={

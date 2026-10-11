@@ -21,5 +21,13 @@ export const voterService = {
       }
     });
     return res.data.data;
+  },
+  getFaceDescriptor: async () => {
+    const res = await api.get('/voter/face-descriptor');
+    return res.data.data;
+  },
+  verifyFace: async (payload) => {
+    const res = await api.post('/voter/verify-face', payload);
+    return res.data;
   }
 };

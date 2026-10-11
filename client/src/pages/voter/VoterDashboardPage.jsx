@@ -169,7 +169,7 @@ export const VoterDashboardPage = () => {
                 <p className="text-ink/75 text-sm mb-6 font-medium">{voter.election_description}</p>
               )}
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-[12px] bg-lavender/50 border-2 border-ink text-sm">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 p-4 rounded-[12px] bg-lavender/50 border-2 border-ink text-sm mb-6">
                 <div className="flex items-center gap-3">
                   <Calendar size={20} className="text-violet" />
                   <div>
@@ -185,6 +185,54 @@ export const VoterDashboardPage = () => {
                   </div>
                 </div>
               </div>
+
+              {/* Voting Action Hub */}
+              <div className="pt-4 border-t-2 border-ink flex flex-col sm:flex-row items-center justify-between gap-4">
+                {hasVoted ? (
+                  <div className="flex flex-wrap items-center gap-3 w-full">
+                    <Button
+                      variant="primary"
+                      onClick={() => navigate(`/voter/receipt/${voter.election_id}`)}
+                      icon={Vote}
+                      className="shadow-neo-md"
+                    >
+                      View Vote Receipt
+                    </Button>
+                    <Button
+                      variant="secondary"
+                      onClick={() => navigate(`/elections/${voter.election_id}/results`)}
+                    >
+                      View Election Results
+                    </Button>
+                  </div>
+                ) : isVerified ? (
+                  <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 w-full">
+                    <div>
+                      <span className="text-xs font-black uppercase text-mint flex items-center gap-1">
+                        <CheckCircle2 size={14} /> Ready for Biometric Voting
+                      </span>
+                      <p className="text-xs font-medium text-ink/75 mt-0.5">
+                        Cast your encrypted ballot using facial verification.
+                      </p>
+                    </div>
+
+                    <Button
+                      variant="primary"
+                      size="lg"
+                      onClick={() => navigate(`/voter/ballot/${voter.election_id}`)}
+                      icon={Vote}
+                      className="w-full sm:w-auto shadow-neo-lg"
+                    >
+                      Cast Ballot Now
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="w-full p-3 bg-sun/40 border-2 border-ink rounded-[10px] text-xs font-bold text-ink flex items-center gap-2">
+                    <Clock size={16} />
+                    <span>Ballot access will unlock once your account is verified by the administrator.</span>
+                  </div>
+                )}
+              </div>
             </Card>
 
             {/* Voting System Stages Roadmap */}
@@ -199,7 +247,7 @@ export const VoterDashboardPage = () => {
                   </div>
                   <div className="flex-1">
                     <h4 className="font-bold text-ink">1. Voter Registration (Module 2)</h4>
-                    <p className="text-sm font-medium text-ink/75 mt-0.5">Your identity information has been recorded in the secure SQLite database.</p>
+                    <p className="text-sm font-medium text-ink/75 mt-0.5">Your identity and facial biometric profile are stored in SQLite.</p>
                   </div>
                 </div>
 
@@ -219,34 +267,45 @@ export const VoterDashboardPage = () => {
                 </div>
 
                 {/* Step 3: Video / Face Verification */}
-                <div className="flex items-start gap-4 p-4 rounded-[12px] bg-lavender/50 border-2 border-ink/40 shadow-neo-sm">
-                  <div className="w-9 h-9 rounded-full bg-surface border-2 border-ink/40 text-ink/70 flex items-center justify-center font-bold text-sm flex-shrink-0">
-                    <Video size={16} />
+                <div className={`flex items-start gap-4 p-4 rounded-[12px] border-2 border-ink shadow-neo-sm ${hasVoted ? 'bg-surface' : isVerified ? 'bg-sky/20' : 'bg-lavender/40'}`}>
+                  <div className={`w-9 h-9 rounded-full border-2 border-ink flex items-center justify-center font-extrabold text-sm flex-shrink-0 ${
+                    hasVoted ? 'bg-mint text-ink' : isVerified ? 'bg-sky text-ink' : 'bg-surface text-ink/70'
+                  }`}>
+                    {hasVoted ? '✓' : <Video size={16} />}
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <h4 className="font-bold text-ink/80">3. Live Video Verification</h4>
+                      <h4 className="font-bold text-ink">3. Live Video Verification (Module 3)</h4>
                       <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-sky border border-ink text-ink">
-                        Module 3
+                        {hasVoted ? 'Verified' : isVerified ? 'Ready' : 'Locked'}
                       </span>
                     </div>
-                    <p className="text-sm font-medium text-ink/70 mt-0.5">Facial biometrics & liveness check will authenticate voter presence before voting.</p>
+                    <p className="text-sm font-medium text-ink/70 mt-0.5">
+                      Real-time facial neural net Euclidean distance validation ensures anti-fraud attendance.
+                    </p>
                   </div>
                 </div>
 
                 {/* Step 4: Electronic Ballot */}
-                <div className="flex items-start gap-4 p-4 rounded-[12px] bg-lavender/50 border-2 border-ink/40 shadow-neo-sm">
-                  <div className="w-9 h-9 rounded-full bg-surface border-2 border-ink/40 text-ink/70 flex items-center justify-center font-bold text-sm flex-shrink-0">
-                    <Vote size={16} />
+                <div className={`flex items-start gap-4 p-4 rounded-[12px] border-2 border-ink shadow-neo-sm ${hasVoted ? 'bg-mint/30' : 'bg-lavender/40'}`}>
+                  <div className={`w-9 h-9 rounded-full border-2 border-ink flex items-center justify-center font-extrabold text-sm flex-shrink-0 ${
+                    hasVoted ? 'bg-mint text-ink' : 'bg-surface text-ink/70'
+                  }`}>
+                    {hasVoted ? '✓' : <Vote size={16} />}
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <h4 className="font-bold text-ink/80">4. Cast Encrypted Vote</h4>
+                      <h4 className="font-bold text-ink">4. Encrypted Ballot & Vote (Module 4)</h4>
                       <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-pink border border-ink text-white">
-                        Module 4
+                        {hasVoted ? 'Recorded' : 'Sealed'}
                       </span>
                     </div>
-                    <p className="text-sm font-medium text-ink/70 mt-0.5">Secure, tamper-proof ballot submission with cryptographic validation.</p>
+                    <p className="text-sm font-medium text-ink/70 mt-0.5">
+                      {hasVoted 
+                        ? 'Your vote is cryptographically secured with SHA-256 digital receipt.'
+                        : 'Tamper-proof ballot submission with cryptographic digital receipt.'
+                      }
+                    </p>
                   </div>
                 </div>
               </div>
