@@ -11,7 +11,7 @@ import Badge from '../../components/ui/Badge';
 import EmptyState from '../../components/ui/EmptyState';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 
-const statusTabs = ['All', 'Upcoming', 'Active', 'Completed', 'Cancelled'];
+const statusTabs = ['All', 'Live', 'Upcoming', 'Completed', 'Cancelled'];
 
 export const ElectionsPage = () => {
   const navigate = useNavigate();
@@ -27,9 +27,15 @@ export const ElectionsPage = () => {
   const fetchElections = async () => {
     setLoading(true);
     try {
+      const mappedStatus = statusFilter === 'All' 
+        ? undefined 
+        : statusFilter === 'Live' 
+          ? 'active' 
+          : statusFilter.toLowerCase();
+
       const params = {
         search: debouncedSearch || undefined,
-        status: statusFilter === 'All' ? undefined : statusFilter.toLowerCase(),
+        status: mappedStatus,
       };
       const res = await electionService.getAll(params);
       setElections(res.data || []);

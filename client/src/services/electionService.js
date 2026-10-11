@@ -1,5 +1,22 @@
 import api from './api';
 
+const computeDynamicStatus = (startDate, endDate, currentStatus) => {
+  if (currentStatus === 'cancelled') return 'cancelled';
+  if (!startDate || !endDate) return currentStatus || 'upcoming';
+
+  const todayStr = new Date().toISOString().split('T')[0];
+  const startStr = startDate.includes('T') ? startDate.split('T')[0] : startDate;
+  const endStr = endDate.includes('T') ? endDate.split('T')[0] : endDate;
+
+  if (todayStr > endStr) {
+    return 'completed';
+  } else if (todayStr >= startStr && todayStr <= endStr) {
+    return 'active';
+  } else {
+    return 'upcoming';
+  }
+};
+
 const mapElection = (e) => {
   if (!e) return null;
   return {
@@ -8,7 +25,7 @@ const mapElection = (e) => {
     description: e.description,
     startDate: e.start_date,
     endDate: e.end_date,
-    status: e.status,
+    status: computeDynamicStatus(e.start_date, e.end_date, e.status),
     candidateCount: e.candidate_count,
     createdBy: e.created_by,
     createdAt: e.created_at,

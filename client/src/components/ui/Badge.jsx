@@ -2,9 +2,10 @@ import React from 'react';
 
 const statusVariants = {
   upcoming: 'bg-sky text-ink',
-  active: 'bg-sky text-ink',
+  active: 'bg-mint text-ink font-extrabold',
+  live: 'bg-mint text-ink font-extrabold',
   info: 'bg-sky text-ink',
-  completed: 'bg-mint text-ink',
+  completed: 'bg-surface text-ink/70',
   voted: 'bg-mint text-ink',
   verified: 'bg-mint text-ink',
   cancelled: 'bg-coral text-ink',
@@ -16,7 +17,8 @@ const statusVariants = {
 const dotColors = {
   upcoming: 'bg-ink',
   active: 'bg-ink animate-ping',
-  completed: 'bg-ink',
+  live: 'bg-ink animate-ping',
+  completed: 'bg-ink/40',
   voted: 'bg-ink',
   verified: 'bg-ink',
   cancelled: 'bg-ink',
@@ -27,6 +29,8 @@ export const Badge = ({ status = 'upcoming', className = '' }) => {
   const normalizedStatus = (status || '').toString().toLowerCase();
   const variantClass = statusVariants[normalizedStatus] || 'bg-white text-ink';
   const dotColor = dotColors[normalizedStatus] || 'bg-ink';
+  
+  const displayLabel = normalizedStatus === 'active' ? 'LIVE' : status;
 
   return (
     <span className={`
@@ -34,7 +38,7 @@ export const Badge = ({ status = 'upcoming', className = '' }) => {
       border-2 border-ink shadow-neo-sm ${variantClass} ${className}
     `}>
       <span className={`w-2 h-2 rounded-full ${dotColor}`} />
-      <span>{status}</span>
+      <span>{displayLabel}</span>
     </span>
   );
 };
