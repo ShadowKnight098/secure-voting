@@ -13,39 +13,18 @@ export const VoterRegisterPage = () => {
     full_name: '',
     email: '',
     phone: '',
-    voter_id_number: '',
     password: '',
-    confirm_password: '',
-    election_id: ''
+    confirm_password: ''
   });
   const [faceData, setFaceData] = useState({
     photo: '',
     descriptor: null
   });
-  const [elections, setElections] = useState([]);
-  const [loadingElections, setLoadingElections] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
   
   const { register } = useVoterAuth();
   const navigate = useNavigate();
-
-  useEffect(() => {
-    const fetchElections = async () => {
-      try {
-        const data = await voterService.getAvailableElections();
-        setElections(data || []);
-        if (data && data.length > 0) {
-          setFormData(prev => ({ ...prev, election_id: data[0].id }));
-        }
-      } catch (err) {
-        console.error('Failed to load elections', err);
-      } finally {
-        setLoadingElections(false);
-      }
-    };
-    fetchElections();
-  }, []);
 
   const handleChange = (e) => {
     const { id, value } = e.target;
@@ -81,11 +60,6 @@ export const VoterRegisterPage = () => {
       return;
     }
 
-    if (!formData.election_id) {
-      setError('Please select an election');
-      return;
-    }
-
     if (!faceData.photo || !faceData.descriptor) {
       setError('Please capture your facial biometrics before submitting registration');
       return;
@@ -96,9 +70,7 @@ export const VoterRegisterPage = () => {
       full_name: formData.full_name,
       email: formData.email,
       phone: formData.phone,
-      voter_id_number: formData.voter_id_number,
       password: formData.password,
-      election_id: parseInt(formData.election_id, 10),
       face_descriptor: faceData.descriptor,
       face_photo: faceData.photo
     });
@@ -145,18 +117,6 @@ export const VoterRegisterPage = () => {
               />
 
               <Input
-                id="voter_id_number"
-                label="National / Voter ID"
-                icon={Hash}
-                placeholder="e.g. VOTER-9821"
-                value={formData.voter_id_number}
-                onChange={handleChange}
-                required
-              />
-            </div>
-
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-              <Input
                 id="email"
                 type="email"
                 label="Email address"
@@ -166,43 +126,24 @@ export const VoterRegisterPage = () => {
                 onChange={handleChange}
                 required
               />
+            </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
               <Input
                 id="phone"
                 type="tel"
-                label="Phone number"
+                label="Phone number (optional)"
                 icon={Phone}
                 placeholder="+1 555-0199"
                 value={formData.phone}
                 onChange={handleChange}
               />
-            </div>
 
-            <div className="space-y-1">
-              <label htmlFor="election_id" className="block text-sm font-semibold text-ink">
-                Participating election <span className="text-coral">*</span>
-              </label>
-              <div className="relative">
-                <select
-                  id="election_id"
-                  value={formData.election_id}
-                  onChange={handleChange}
-                  disabled={loadingElections}
-                  className="w-full bg-surface border-2 border-ink rounded-[12px] px-4 py-3 text-ink font-bold focus:outline-none focus:ring-4 focus:ring-sun/60 transition-all cursor-pointer"
-                  required
-                >
-                  {loadingElections ? (
-                    <option value="">Loading active elections...</option>
-                  ) : elections.length === 0 ? (
-                    <option value="">No active elections available</option>
-                  ) : (
-                    elections.map(el => (
-                      <option key={el.id} value={el.id}>
-                        {el.title} ({el.status.toUpperCase()})
-                      </option>
-                    ))
-                  )}
-                </select>
+              <div className="p-3 bg-sun/30 border-2 border-ink rounded-[12px] flex items-center gap-2.5 text-xs font-bold text-ink shadow-neo-sm">
+                <Hash size={18} className="text-violet flex-shrink-0" />
+                <span>
+                  <strong>Dynamic Voter ID:</strong> A unique Voter ID will be automatically generated upon enrollment and shown on your dashboard.
+                </span>
               </div>
             </div>
 

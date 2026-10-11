@@ -95,9 +95,12 @@ export const VoterDashboardPage = () => {
               <h1 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">
                 Welcome back, {voter?.full_name} 👋
               </h1>
-              <p className="text-ink/70 font-medium text-sm mt-1">
-                Voter ID: <span className="text-violet font-mono font-bold bg-lavender px-2 py-0.5 rounded border border-ink">{voter?.voter_id_number}</span>
-              </p>
+              <div className="flex flex-wrap items-center gap-2 mt-2">
+                <span className="text-xs font-bold text-ink/70">Your Dynamically Generated Voter ID:</span>
+                <span className="text-violet font-mono font-black text-sm bg-sun/40 px-2.5 py-1 rounded-[8px] border-2 border-ink shadow-neo-sm tracking-wider">
+                  {voter?.voter_id_number}
+                </span>
+              </div>
             </div>
 
             <div className="flex flex-wrap items-center gap-2.5">

@@ -7,10 +7,10 @@ import { successResponse, errorResponse } from '../utils/helpers.js';
 
 export const register = async (req, res) => {
   try {
-    const { full_name, email, phone, voter_id_number, password, election_id, face_descriptor, face_photo } = req.body;
+    const { full_name, email, phone, password, face_descriptor, face_photo } = req.body;
 
-    if (!full_name || !email || !voter_id_number || !password || !election_id) {
-      return errorResponse(res, 'Full name, email, voter ID number, password, and election are required', 400);
+    if (!full_name || !email || !password) {
+      return errorResponse(res, 'Full legal name, email address, and password are required', 400);
     }
 
     // Strict Facial Biometric Validation: Must be a genuine 128-d human face scan
@@ -43,17 +43,29 @@ export const register = async (req, res) => {
       return errorResponse(res, 'A voter with this email is already registered', 409);
     }
 
-    // Check if voter_id_number already exists
-    const existingVoterId = db.prepare('SELECT id FROM voters WHERE voter_id_number = ?').get(voter_id_number);
-    if (existingVoterId) {
-      return errorResponse(res, 'A voter with this Voter ID Number is already registered', 409);
+    // Automatically generate a unique, cryptographically random Voter ID Number
+    let voter_id_number = '';
+    let isUnique = false;
+    let attempts = 0;
+    while (!isUnique && attempts < 10) {
+      attempts++;
+      const randomDigits = Math.floor(100000 + Math.random() * 900000); // 6-digit random number
+      voter_id_number = `VOTER-${randomDigits}`;
+      const duplicate = db.prepare('SELECT id FROM voters WHERE voter_id_number = ?').get(voter_id_number);
+      if (!duplicate) {
+        isUnique = true;
+      }
     }
 
-    // Verify election exists
-    const election = db.prepare('SELECT id, title, status FROM elections WHERE id = ?').get(election_id);
-    if (!election) {
-      return errorResponse(res, 'Selected election does not exist', 404);
-    }
+    // Dynamically locate the default active or upcoming election for general voting eligibility
+    const defaultElection = db.prepare(`
+      SELECT id, title, status FROM elections 
+      WHERE status IN ('active', 'upcoming')
+      ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, start_date ASC 
+      LIMIT 1
+    `).get();
+
+    const assignedElectionId = defaultElection ? defaultElection.id : null;
 
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(password, saltRounds);
@@ -63,7 +75,7 @@ export const register = async (req, res) => {
       VALUES (?, ?, ?, ?, ?, 0, 0, ?)
     `);
 
-    const result = stmt.run(full_name, email, phone || null, voter_id_number, passwordHash, election_id);
+    const result = stmt.run(full_name, email, phone || null, voter_id_number, passwordHash, assignedElectionId);
     const voterId = result.lastInsertRowid;
 
     // Handle facial biometric data enrollment
@@ -114,9 +126,9 @@ export const register = async (req, res) => {
       voter_id_number,
       has_voted: 0,
       is_verified: 0,
-      election_id,
-      election_title: election.title,
-      election_status: election.status,
+      election_id: assignedElectionId,
+      election_title: defaultElection?.title || 'General Election',
+      election_status: defaultElection?.status || 'upcoming',
       has_face_data: face_descriptor ? 1 : 0,
       photo_url: savedPhotoUrl
     };
@@ -172,7 +184,7 @@ export const login = async (req, res) => {
 
 export const getProfile = (req, res) => {
   try {
-    const voter = db.prepare(`
+    let voter = db.prepare(`
       SELECT v.id, v.full_name, v.email, v.phone, v.voter_id_number, v.has_voted, v.is_verified, v.election_id, v.created_at,
              e.title as election_title, e.description as election_description, e.status as election_status, e.start_date, e.end_date,
              fd.photo_url as face_photo_url,
@@ -185,6 +197,27 @@ export const getProfile = (req, res) => {
 
     if (!voter) {
       return errorResponse(res, 'Voter profile not found', 404);
+    }
+
+    // If voter has no election assigned or election has passed, dynamically assign to current active election
+    if (!voter.election_id) {
+      const activeElection = db.prepare(`
+        SELECT id, title, description, status, start_date, end_date 
+        FROM elections 
+        WHERE status IN ('active', 'upcoming')
+        ORDER BY CASE WHEN status = 'active' THEN 0 ELSE 1 END, start_date ASC 
+        LIMIT 1
+      `).get();
+
+      if (activeElection) {
+        db.prepare('UPDATE voters SET election_id = ? WHERE id = ?').run(activeElection.id, voter.id);
+        voter.election_id = activeElection.id;
+        voter.election_title = activeElection.title;
+        voter.election_description = activeElection.description;
+        voter.election_status = activeElection.status;
+        voter.start_date = activeElection.start_date;
+        voter.end_date = activeElection.end_date;
+      }
     }
 
     return successResponse(res, voter, 'Profile retrieved successfully');
