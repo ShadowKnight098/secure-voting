@@ -13,6 +13,30 @@ export const register = async (req, res) => {
       return errorResponse(res, 'Full name, email, voter ID number, password, and election are required', 400);
     }
 
+    // Strict Facial Biometric Validation: Must be a genuine 128-d human face scan
+    if (!face_descriptor || !face_photo) {
+      return errorResponse(res, 'Valid live facial biometric scan is required to register. Please scan your face via webcam.', 400);
+    }
+
+    let parsedDescriptor = face_descriptor;
+    if (typeof face_descriptor === 'string') {
+      try {
+        parsedDescriptor = JSON.parse(face_descriptor);
+      } catch {
+        return errorResponse(res, 'Invalid biometric face descriptor format', 400);
+      }
+    }
+
+    if (!Array.isArray(parsedDescriptor) || parsedDescriptor.length !== 128) {
+      return errorResponse(res, 'Biometric scan rejected: must contain a valid 128-dimensional facial embedding vector.', 400);
+    }
+
+    const isValidFloats = parsedDescriptor.every(n => typeof n === 'number' && !isNaN(n) && isFinite(n));
+    const nonZeroCount = parsedDescriptor.filter(n => Math.abs(n) > 0.0001).length;
+    if (!isValidFloats || nonZeroCount < 30) {
+      return errorResponse(res, 'Biometric scan rejected: no valid human face was detected.', 400);
+    }
+
     // Check if email already registered
     const existingEmail = db.prepare('SELECT id FROM voters WHERE email = ?').get(email);
     if (existingEmail) {

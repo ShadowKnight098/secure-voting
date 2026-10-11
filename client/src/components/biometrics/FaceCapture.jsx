@@ -1,6 +1,17 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import * as faceapi from '@vladmandic/face-api';
-import { Camera, RefreshCw, CheckCircle2, AlertTriangle, Sparkles, Upload, VideoOff } from 'lucide-react';
+import { 
+  Camera, 
+  RefreshCw, 
+  CheckCircle2, 
+  AlertTriangle, 
+  Sparkles, 
+  VideoOff, 
+  Users, 
+  ShieldAlert,
+  UserCheck
+} from 'lucide-react';
+import toast from 'react-hot-toast';
 import Button from '../ui/Button';
 
 export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
@@ -10,13 +21,12 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
   const detectIntervalRef = useRef(null);
 
   const [modelsLoaded, setModelsLoaded] = useState(false);
-  const [modelLoadingError, setModelLoadingError] = useState(null);
   const [cameraActive, setCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState(null);
   const [faceDetected, setFaceDetected] = useState(false);
   const [detectionScore, setDetectionScore] = useState(null);
+  const [detectionError, setDetectionError] = useState(null);
   const [capturing, setCapturing] = useState(false);
-  const [isFallbackMode, setIsFallbackMode] = useState(false);
 
   // 1. Load face-api models from /models
   useEffect(() => {
@@ -37,7 +47,7 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
       } catch (err) {
         console.error('Failed to load face-api models:', err);
         if (isMounted) {
-          setModelLoadingError('Could not load biometric AI models locally.');
+          setDetectionError('Could not load biometric AI models locally.');
         }
       }
     };
@@ -49,10 +59,11 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
     };
   }, []);
 
-  // 2. Start webcam stream
+  // 2. Start webcam stream (Strict live camera only)
   const startCamera = useCallback(async () => {
     try {
       setCameraError(null);
+      setDetectionError(null);
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
@@ -76,7 +87,7 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
       console.warn('Camera access error:', err);
       setCameraError(
         err.name === 'NotAllowedError'
-          ? 'Camera permission denied. Please allow camera access in your browser.'
+          ? 'Camera permission denied. Camera access is strictly required to verify voter identity.'
           : 'No camera found or camera is currently busy in another application.'
       );
     }
@@ -97,15 +108,15 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
 
   // Manage camera lifecycle
   useEffect(() => {
-    if (modelsLoaded && !capturedPhoto && !isFallbackMode) {
+    if (modelsLoaded && !capturedPhoto) {
       startCamera();
     }
     return () => {
       stopCamera();
     };
-  }, [modelsLoaded, capturedPhoto, isFallbackMode, startCamera, stopCamera]);
+  }, [modelsLoaded, capturedPhoto, startCamera, stopCamera]);
 
-  // 4. Face Detection loop on live stream
+  // 4. Face Detection loop on live stream with strict single-face validation
   useEffect(() => {
     if (!cameraActive || capturedPhoto || !videoRef.current) return;
 
@@ -113,79 +124,111 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
       if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) return;
 
       try {
-        const detection = await faceapi
-          .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.5 }))
+        // Detect ALL faces in frame to ensure strictly ONE face exists
+        const allDetections = await faceapi
+          .detectAllFaces(
+            videoRef.current, 
+            new faceapi.TinyFaceDetectorOptions({ inputSize: 256, scoreThreshold: 0.60 })
+          )
           .withFaceLandmarks()
-          .withFaceDescriptor();
+          .withFaceDescriptors();
 
-        if (detection && detection.descriptor) {
-          setFaceDetected(true);
-          setDetectionScore(Math.round(detection.detection.score * 100));
+        const ctx = canvasRef.current?.getContext('2d');
+        if (canvasRef.current && videoRef.current) {
+          const displaySize = {
+            width: videoRef.current.videoWidth || 640,
+            height: videoRef.current.videoHeight || 480
+          };
+          faceapi.matchDimensions(canvasRef.current, displaySize);
+          ctx.clearRect(0, 0, displaySize.width, displaySize.height);
+        }
 
-          // Draw detection bounding box on overlay canvas
-          if (canvasRef.current && videoRef.current) {
-            const displaySize = {
-              width: videoRef.current.videoWidth || 640,
-              height: videoRef.current.videoHeight || 480
-            };
-            faceapi.matchDimensions(canvasRef.current, displaySize);
-            const resizedDetection = faceapi.resizeResults(detection, displaySize);
-            const ctx = canvasRef.current.getContext('2d');
-            ctx.clearRect(0, 0, displaySize.width, displaySize.height);
-
-            // Custom Neo-Brutalist HUD Box
-            const box = resizedDetection.detection.box;
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = '#22C55E';
-            ctx.strokeRect(box.x, box.y, box.width, box.height);
-
-            // Draw corner accents
-            const length = 18;
-            ctx.lineWidth = 5;
-            ctx.strokeStyle = '#FACC15';
-
-            // Top-left
-            ctx.beginPath();
-            ctx.moveTo(box.x, box.y + length);
-            ctx.lineTo(box.x, box.y);
-            ctx.lineTo(box.x + length, box.y);
-            ctx.stroke();
-
-            // Top-right
-            ctx.beginPath();
-            ctx.moveTo(box.x + box.width - length, box.y);
-            ctx.lineTo(box.x + box.width, box.y);
-            ctx.lineTo(box.x + box.width, box.y + length);
-            ctx.stroke();
-
-            // Bottom-left
-            ctx.beginPath();
-            ctx.moveTo(box.x, box.y + box.height - length);
-            ctx.lineTo(box.x, box.y + box.height);
-            ctx.lineTo(box.x + length, box.y + box.height);
-            ctx.stroke();
-
-            // Bottom-right
-            ctx.beginPath();
-            ctx.moveTo(box.x + box.width - length, box.y + box.height);
-            ctx.lineTo(box.x + box.width, box.y + box.height);
-            ctx.lineTo(box.x + box.width, box.y + box.height - length);
-            ctx.stroke();
-          }
-        } else {
+        if (!allDetections || allDetections.length === 0) {
           setFaceDetected(false);
           setDetectionScore(null);
-          if (canvasRef.current) {
-            const ctx = canvasRef.current.getContext('2d');
-            ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+          setDetectionError('No face detected. Please position your face clearly in the camera.');
+          return;
+        }
+
+        if (allDetections.length > 1) {
+          setFaceDetected(false);
+          setDetectionScore(null);
+          setDetectionError(`Multiple faces detected (${allDetections.length}). Only 1 person is allowed in the frame!`);
+          
+          // Draw warning red boxes
+          if (ctx && canvasRef.current) {
+            allDetections.forEach(det => {
+              const box = det.detection.box;
+              ctx.lineWidth = 3;
+              ctx.strokeStyle = '#EF4444';
+              ctx.strokeRect(box.x, box.y, box.width, box.height);
+            });
           }
+          return;
+        }
+
+        // Exactly 1 face detected
+        const singleFace = allDetections[0];
+        const score = Math.round(singleFace.detection.score * 100);
+
+        if (score < 65) {
+          setFaceDetected(false);
+          setDetectionScore(score);
+          setDetectionError('Face clarity too low. Please look directly into the camera with good lighting.');
+          return;
+        }
+
+        // Valid single face confirmed!
+        setFaceDetected(true);
+        setDetectionScore(score);
+        setDetectionError(null);
+
+        // Draw HUD Green box
+        if (ctx && canvasRef.current) {
+          const box = singleFace.detection.box;
+          ctx.lineWidth = 3;
+          ctx.strokeStyle = '#22C55E';
+          ctx.strokeRect(box.x, box.y, box.width, box.height);
+
+          // Corner brackets
+          const length = 20;
+          ctx.lineWidth = 5;
+          ctx.strokeStyle = '#FACC15';
+
+          // Top-left
+          ctx.beginPath();
+          ctx.moveTo(box.x, box.y + length);
+          ctx.lineTo(box.x, box.y);
+          ctx.lineTo(box.x + length, box.y);
+          ctx.stroke();
+
+          // Top-right
+          ctx.beginPath();
+          ctx.moveTo(box.x + box.width - length, box.y);
+          ctx.lineTo(box.x + box.width, box.y);
+          ctx.lineTo(box.x + box.width, box.y + length);
+          ctx.stroke();
+
+          // Bottom-left
+          ctx.beginPath();
+          ctx.moveTo(box.x, box.y + box.height - length);
+          ctx.lineTo(box.x, box.y + box.height);
+          ctx.lineTo(box.x + length, box.y + box.height);
+          ctx.stroke();
+
+          // Bottom-right
+          ctx.beginPath();
+          ctx.moveTo(box.x + box.width - length, box.y + box.height);
+          ctx.lineTo(box.x + box.width, box.y + box.height);
+          ctx.lineTo(box.x + box.width, box.y + box.height - length);
+          ctx.stroke();
         }
       } catch (err) {
-        // Silently retry next frame
+        // Silently retry
       }
     };
 
-    detectIntervalRef.current = setInterval(runDetection, 160);
+    detectIntervalRef.current = setInterval(runDetection, 180);
 
     return () => {
       if (detectIntervalRef.current) {
@@ -194,19 +237,37 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
     };
   }, [cameraActive, capturedPhoto]);
 
-  // 5. Capture Face snapshot & descriptor
+  // 5. Strictly capture live face snapshot & 128-d descriptor
   const handleCapture = async () => {
     if (!videoRef.current || capturing) return;
     setCapturing(true);
 
     try {
-      const detection = await faceapi
-        .detectSingleFace(videoRef.current, new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.5 }))
+      // Re-validate that a valid face exists right now
+      const allDetections = await faceapi
+        .detectAllFaces(
+          videoRef.current, 
+          new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.65 })
+        )
         .withFaceLandmarks()
-        .withFaceDescriptor();
+        .withFaceDescriptors();
 
-      if (!detection || !detection.descriptor) {
-        alert('No clear face detected! Please face the camera directly and try again.');
+      if (!allDetections || allDetections.length === 0) {
+        toast.error('Capture rejected: No valid face detected in frame.');
+        setCapturing(false);
+        return;
+      }
+
+      if (allDetections.length > 1) {
+        toast.error('Capture rejected: Multiple faces detected! Only one person is permitted.');
+        setCapturing(false);
+        return;
+      }
+
+      const detection = allDetections[0];
+
+      if (!detection.descriptor || detection.descriptor.length !== 128) {
+        toast.error('Capture rejected: Could not extract valid biometric facial landmarks.');
         setCapturing(false);
         return;
       }
@@ -216,7 +277,6 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
       snapCanvas.width = videoRef.current.videoWidth || 640;
       snapCanvas.height = videoRef.current.videoHeight || 480;
       const ctx = snapCanvas.getContext('2d');
-      // Mirror image like video feed
       ctx.translate(snapCanvas.width, 0);
       ctx.scale(-1, 1);
       ctx.drawImage(videoRef.current, 0, 0, snapCanvas.width, snapCanvas.height);
@@ -225,63 +285,22 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
       const descriptorArray = Array.from(detection.descriptor);
 
       stopCamera();
+      toast.success('Valid human face biometric scan recorded!');
       onCapture({
         photo: photoBase64,
         descriptor: descriptorArray
       });
     } catch (err) {
       console.error('Face capture failed:', err);
-      alert('Failed to process biometric face data. Please try again.');
+      toast.error('Face verification failed. Please try again.');
     } finally {
       setCapturing(false);
     }
   };
 
-  // 6. Manual Fallback: Photo File Upload with AI processing
-  const handleFileUpload = async (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = async (event) => {
-      const img = new Image();
-      img.onload = async () => {
-        try {
-          const detection = await faceapi
-            .detectSingleFace(img, new faceapi.TinyFaceDetectorOptions())
-            .withFaceLandmarks()
-            .withFaceDescriptor();
-
-          if (detection && detection.descriptor) {
-            onCapture({
-              photo: event.target.result,
-              descriptor: Array.from(detection.descriptor)
-            });
-          } else {
-            // Generate simulated 128-d descriptor if model cannot extract from this specific photo
-            const simulatedDescriptor = Array.from({ length: 128 }, () => (Math.random() * 0.4 - 0.2));
-            onCapture({
-              photo: event.target.result,
-              descriptor: simulatedDescriptor
-            });
-          }
-        } catch (err) {
-          const simulatedDescriptor = Array.from({ length: 128 }, () => (Math.random() * 0.4 - 0.2));
-          onCapture({
-            photo: event.target.result,
-            descriptor: simulatedDescriptor
-          });
-        }
-      };
-      img.src = event.target.result;
-    };
-    reader.readAsDataURL(file);
-  };
-
-  // 7. Retake Action
+  // 6. Retake Action
   const handleRetake = () => {
     if (onReset) onReset();
-    setIsFallbackMode(false);
     startCamera();
   };
 
@@ -293,9 +312,9 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
             <Camera size={18} className="text-ink" />
           </div>
           <div>
-            <h3 className="font-extrabold text-base text-ink">Facial Biometric Enrollment</h3>
+            <h3 className="font-extrabold text-base text-ink">Live Facial Biometric Enrollment</h3>
             <p className="text-xs font-semibold text-ink/70">
-              Live face capture for verification & secure ballot access
+              Live webcam scan required — AI strictly verifies genuine face
             </p>
           </div>
         </div>
@@ -303,16 +322,16 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
         {capturedPhoto ? (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-mint text-ink border-2 border-ink text-xs font-black shadow-neo-sm">
             <CheckCircle2 size={14} className="text-ink" />
-            Biometrics Enrolled
+            Face Verified & Enrolled
           </span>
         ) : faceDetected ? (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-mint text-ink border-2 border-ink text-xs font-bold shadow-neo-sm animate-pulse">
-            <Sparkles size={14} className="text-ink" />
-            Face Detected ({detectionScore}%)
+            <UserCheck size={14} className="text-ink" />
+            Valid Face ({detectionScore}%)
           </span>
         ) : (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-sun text-ink border-2 border-ink text-xs font-bold shadow-neo-sm">
-            Required Step
+            Mandatory Step
           </span>
         )}
       </div>
@@ -336,7 +355,7 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
               <span>✅ 128-dimensional biometric descriptor extracted</span>
             </div>
             <p className="text-xs font-medium text-ink/80 leading-relaxed">
-              Your biometric embedding is computed client-side and will be linked to your voter profile. You will verify this face during ballot submission.
+              Your biometric embedding is calculated from a verified live face scan. This descriptor will authenticate your identity during live video verification on election day.
             </p>
             <div className="pt-2">
               <Button
@@ -345,54 +364,40 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
                 size="sm"
                 onClick={handleRetake}
               >
-                <RefreshCw size={14} className="mr-1.5" /> Retake facial scan
+                <RefreshCw size={14} className="mr-1.5" /> Retake live scan
               </Button>
             </div>
           </div>
         </div>
-      ) : isFallbackMode || cameraError ? (
-        /* Camera Error or Fallback Upload View */
+      ) : cameraError ? (
+        /* Camera Error Block - strictly requires camera */
         <div className="space-y-4 p-5 bg-lavender/40 rounded-[14px] border-2 border-ink text-center">
           <div className="w-12 h-12 rounded-full bg-coral/40 border-2 border-ink mx-auto flex items-center justify-center text-ink shadow-neo-sm">
             <VideoOff size={24} />
           </div>
 
           <div>
-            <h4 className="font-extrabold text-sm text-ink">
-              {cameraError || 'Camera unavailable'}
+            <h4 className="font-extrabold text-sm text-ink text-coral">
+              Camera Access Required
             </h4>
-            <p className="text-xs font-medium text-ink/70 mt-1 max-w-sm mx-auto">
-              You can upload a clear photo of your face from your device to complete your biometric enrollment.
+            <p className="text-xs font-medium text-ink/75 mt-1 max-w-sm mx-auto">
+              {cameraError}
             </p>
           </div>
 
-          <div className="flex flex-wrap items-center justify-center gap-3 pt-2">
-            <label className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-sun text-ink font-extrabold text-xs rounded-[10px] border-2 border-ink shadow-neo-sm hover:-translate-y-0.5 transition-all">
-              <Upload size={15} />
-              Upload Face Photo
-              <input
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handleFileUpload}
-              />
-            </label>
-
+          <div className="pt-2">
             <Button
               type="button"
-              variant="secondary"
+              variant="primary"
               size="sm"
-              onClick={() => {
-                setIsFallbackMode(false);
-                startCamera();
-              }}
+              onClick={startCamera}
             >
-              <RefreshCw size={14} className="mr-1.5" /> Retry Webcam
+              <RefreshCw size={14} className="mr-1.5" /> Try Connecting Camera Again
             </Button>
           </div>
         </div>
       ) : (
-        /* Active Webcam View */
+        /* Active Live Webcam View */
         <div className="space-y-4">
           <div className="relative w-full max-w-md mx-auto aspect-[4/3] bg-slate-900 rounded-[14px] border-2 border-ink overflow-hidden shadow-neo flex items-center justify-center">
             {!modelsLoaded ? (
@@ -414,11 +419,11 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
                   className="absolute inset-0 w-full h-full pointer-events-none transform -scale-x-100"
                 />
 
-                {/* Neo-Brutal Viewfinder Overlay */}
+                {/* Viewfinder Target */}
                 <div className="absolute inset-0 pointer-events-none border-4 border-dashed border-white/20 rounded-[12px] m-4 flex items-center justify-center">
                   {!faceDetected && (
-                    <div className="bg-ink/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-[8px] text-xs font-bold border border-white/30 animate-pulse">
-                      Align your face within the frame
+                    <div className="bg-ink/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-[8px] text-xs font-bold border border-white/30 animate-pulse text-center">
+                      Align face in viewfinder
                     </div>
                   )}
                 </div>
@@ -426,41 +431,39 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
             )}
           </div>
 
+          {/* Real-time status / warnings */}
+          {detectionError && (
+            <div className="p-3 bg-sun/40 border-2 border-ink rounded-[10px] text-xs font-bold text-ink flex items-center gap-2 animate-slide-up">
+              <AlertTriangle size={16} className="text-violet flex-shrink-0" />
+              <span>{detectionError}</span>
+            </div>
+          )}
+
           {/* Action buttons */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
             <div className="text-xs font-semibold text-ink/70">
               {faceDetected ? (
                 <span className="text-mint font-extrabold flex items-center gap-1">
-                  <CheckCircle2 size={15} /> Face detected with high clarity
+                  <CheckCircle2 size={15} /> Valid single face confirmed ({detectionScore}%)
                 </span>
               ) : (
-                <span className="flex items-center gap-1 text-ink/60">
-                  <AlertTriangle size={15} /> Please position your face towards the camera
+                <span className="flex items-center gap-1 text-coral font-bold">
+                  <ShieldAlert size={15} /> Valid face required to enable capture
                 </span>
               )}
             </div>
 
-            <div className="flex items-center gap-2 w-full sm:w-auto">
-              <button
-                type="button"
-                onClick={() => setIsFallbackMode(true)}
-                className="text-xs font-bold text-ink/70 hover:text-ink underline px-2 py-1"
-              >
-                Use photo upload instead
-              </button>
-
-              <Button
-                type="button"
-                variant="primary"
-                size="md"
-                onClick={handleCapture}
-                disabled={!faceDetected || capturing || !modelsLoaded}
-                loading={capturing}
-                className="flex-1 sm:flex-initial shadow-neo-md"
-              >
-                <Camera size={16} className="mr-1.5" /> Capture Biometrics
-              </Button>
-            </div>
+            <Button
+              type="button"
+              variant="primary"
+              size="md"
+              onClick={handleCapture}
+              disabled={!faceDetected || capturing || !modelsLoaded}
+              loading={capturing}
+              className="w-full sm:w-auto shadow-neo-md"
+            >
+              <Camera size={16} className="mr-1.5" /> Capture Valid Face
+            </Button>
           </div>
         </div>
       )}
