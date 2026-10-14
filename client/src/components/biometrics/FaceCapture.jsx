@@ -13,12 +13,14 @@ import {
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Button from '../ui/Button';
+import { loadFaceApiModels } from '../../utils/faceApiLoader';
 
 export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const detectIntervalRef = useRef(null);
+  const isDetectingRef = useRef(false);
 
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
@@ -28,19 +30,13 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
   const [detectionError, setDetectionError] = useState(null);
   const [capturing, setCapturing] = useState(false);
 
-  // 1. Load face-api models from /models
+  // 1. Load face-api models from singleton loader
   useEffect(() => {
     let isMounted = true;
 
     const loadModels = async () => {
       try {
-        const MODEL_URL = '/models';
-        await Promise.all([
-          faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-          faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-          faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
-        ]);
-
+        await loadFaceApiModels();
         if (isMounted) {
           setModelsLoaded(true);
         }
@@ -59,7 +55,7 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
     };
   }, []);
 
-  // 2. Start webcam stream (Strict live camera only)
+  // 2. Start webcam stream (Ultra fast initialization)
   const startCamera = useCallback(async () => {
     try {
       setCameraError(null);
@@ -70,8 +66,8 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
 
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: 640 },
-          height: { ideal: 480 },
+          width: { ideal: 640, max: 640 },
+          height: { ideal: 480, max: 480 },
           facingMode: 'user'
         },
         audio: false
@@ -116,22 +112,21 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
     };
   }, [modelsLoaded, capturedPhoto, startCamera, stopCamera]);
 
-  // 4. Face Detection loop on live stream with strict single-face validation
+  // 4. Ultra-Fast Face Detection loop on live stream (pure bounding box, zero descriptor overhead)
   useEffect(() => {
-    if (!cameraActive || capturedPhoto || !videoRef.current) return;
+    if (!cameraActive || capturedPhoto || !videoRef.current || capturing) return;
 
     const runDetection = async () => {
-      if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) return;
+      if (!videoRef.current || videoRef.current.paused || videoRef.current.ended || capturing) return;
+      if (isDetectingRef.current) return;
+      isDetectingRef.current = true;
 
       try {
-        // Detect ALL faces in frame to ensure strictly ONE face exists
-        const allDetections = await faceapi
-          .detectAllFaces(
-            videoRef.current, 
-            new faceapi.TinyFaceDetectorOptions({ inputSize: 256, scoreThreshold: 0.60 })
-          )
-          .withFaceLandmarks()
-          .withFaceDescriptors();
+        // Fast detection only: inputSize 160 takes ~10ms
+        const allDetections = await faceapi.detectAllFaces(
+          videoRef.current, 
+          new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.55 })
+        );
 
         const ctx = canvasRef.current?.getContext('2d');
         if (canvasRef.current && videoRef.current) {
@@ -158,10 +153,12 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
           // Draw warning red boxes
           if (ctx && canvasRef.current) {
             allDetections.forEach(det => {
-              const box = det.detection.box;
-              ctx.lineWidth = 3;
-              ctx.strokeStyle = '#EF4444';
-              ctx.strokeRect(box.x, box.y, box.width, box.height);
+              const box = det.box || det.detection?.box;
+              if (box) {
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#EF4444';
+                ctx.strokeRect(box.x, box.y, box.width, box.height);
+              }
             });
           }
           return;
@@ -169,9 +166,10 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
 
         // Exactly 1 face detected
         const singleFace = allDetections[0];
-        const score = Math.round(singleFace.detection.score * 100);
+        const rawScore = singleFace.score ?? singleFace.detection?.score ?? 0.8;
+        const score = Math.round(rawScore * 100);
 
-        if (score < 65) {
+        if (score < 55) {
           setFaceDetected(false);
           setDetectionScore(score);
           setDetectionError('Face clarity too low. Please look directly into the camera with good lighting.');
@@ -185,50 +183,54 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
 
         // Draw HUD Green box
         if (ctx && canvasRef.current) {
-          const box = singleFace.detection.box;
-          ctx.lineWidth = 3;
-          ctx.strokeStyle = '#22C55E';
-          ctx.strokeRect(box.x, box.y, box.width, box.height);
+          const box = singleFace.box || singleFace.detection?.box;
+          if (box) {
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = '#22C55E';
+            ctx.strokeRect(box.x, box.y, box.width, box.height);
 
-          // Corner brackets
-          const length = 20;
-          ctx.lineWidth = 5;
-          ctx.strokeStyle = '#FACC15';
+            // Corner brackets
+            const length = 20;
+            ctx.lineWidth = 5;
+            ctx.strokeStyle = '#FACC15';
 
-          // Top-left
-          ctx.beginPath();
-          ctx.moveTo(box.x, box.y + length);
-          ctx.lineTo(box.x, box.y);
-          ctx.lineTo(box.x + length, box.y);
-          ctx.stroke();
+            // Top-left
+            ctx.beginPath();
+            ctx.moveTo(box.x, box.y + length);
+            ctx.lineTo(box.x, box.y);
+            ctx.lineTo(box.x + length, box.y);
+            ctx.stroke();
 
-          // Top-right
-          ctx.beginPath();
-          ctx.moveTo(box.x + box.width - length, box.y);
-          ctx.lineTo(box.x + box.width, box.y);
-          ctx.lineTo(box.x + box.width, box.y + length);
-          ctx.stroke();
+            // Top-right
+            ctx.beginPath();
+            ctx.moveTo(box.x + box.width - length, box.y);
+            ctx.lineTo(box.x + box.width, box.y);
+            ctx.lineTo(box.x + box.width, box.y + length);
+            ctx.stroke();
 
-          // Bottom-left
-          ctx.beginPath();
-          ctx.moveTo(box.x, box.y + box.height - length);
-          ctx.lineTo(box.x, box.y + box.height);
-          ctx.lineTo(box.x + length, box.y + box.height);
-          ctx.stroke();
+            // Bottom-left
+            ctx.beginPath();
+            ctx.moveTo(box.x, box.y + box.height - length);
+            ctx.lineTo(box.x, box.y + box.height);
+            ctx.lineTo(box.x + length, box.y + box.height);
+            ctx.stroke();
 
-          // Bottom-right
-          ctx.beginPath();
-          ctx.moveTo(box.x + box.width - length, box.y + box.height);
-          ctx.lineTo(box.x + box.width, box.y + box.height);
-          ctx.lineTo(box.x + box.width, box.y + box.height - length);
-          ctx.stroke();
+            // Bottom-right
+            ctx.beginPath();
+            ctx.moveTo(box.x + box.width - length, box.y + box.height);
+            ctx.lineTo(box.x + box.width, box.y + box.height);
+            ctx.lineTo(box.x + box.width, box.y + box.height - length);
+            ctx.stroke();
+          }
         }
       } catch (err) {
         // Silently retry
+      } finally {
+        isDetectingRef.current = false;
       }
     };
 
-    detectIntervalRef.current = setInterval(runDetection, 180);
+    detectIntervalRef.current = setInterval(runDetection, 140);
 
     return () => {
       if (detectIntervalRef.current) {
@@ -237,17 +239,17 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
     };
   }, [cameraActive, capturedPhoto]);
 
-  // 5. Strictly capture live face snapshot & 128-d descriptor
+  // 5. Strictly capture live face snapshot & 128-d descriptor (computed once on demand)
   const handleCapture = async () => {
     if (!videoRef.current || capturing) return;
     setCapturing(true);
 
     try {
-      // Re-validate that a valid face exists right now
+      // Synchronously compute landmark and 128-d descriptor on the captured frame
       const allDetections = await faceapi
         .detectAllFaces(
           videoRef.current, 
-          new faceapi.TinyFaceDetectorOptions({ inputSize: 320, scoreThreshold: 0.65 })
+          new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.55 })
         )
         .withFaceLandmarks()
         .withFaceDescriptors();

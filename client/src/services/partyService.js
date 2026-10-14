@@ -1,8 +1,8 @@
 import api from './api';
 
 export const partyService = {
-  getAll: async () => {
-    const res = await api.get('/parties');
+  getAll: async (params = {}) => {
+    const res = await api.get('/parties', { params });
     return res.data;
   },
 

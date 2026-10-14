@@ -12,12 +12,14 @@ import {
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import { voterService } from '../../services/voterService';
+import { loadFaceApiModels } from '../../utils/faceApiLoader';
 
 export const FaceVerificationModal = ({ isOpen, onClose, electionId, onVerified }) => {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
   const detectIntervalRef = useRef(null);
+  const isDetectingRef = useRef(false);
 
   const [modelsLoaded, setModelsLoaded] = useState(false);
   const [cameraActive, setCameraActive] = useState(false);
@@ -28,7 +30,7 @@ export const FaceVerificationModal = ({ isOpen, onClose, electionId, onVerified 
   const [errorMessage, setErrorMessage] = useState('');
   const [registeredPhoto, setRegisteredPhoto] = useState(null);
 
-  // 1. Fetch voter registered face photo & load AI models
+  // 1. Fetch voter registered face photo & load AI models using singleton loader
   useEffect(() => {
     if (!isOpen) return;
 
@@ -36,13 +38,7 @@ export const FaceVerificationModal = ({ isOpen, onClose, electionId, onVerified 
 
     const init = async () => {
       try {
-        const MODEL_URL = '/models';
-        await Promise.all([
-          faceapi.nets.tinyFaceDetector.loadFromUri(MODEL_URL),
-          faceapi.nets.faceLandmark68Net.loadFromUri(MODEL_URL),
-          faceapi.nets.faceRecognitionNet.loadFromUri(MODEL_URL)
-        ]);
-
+        await loadFaceApiModels();
         if (isMounted) setModelsLoaded(true);
 
         // Fetch registered photo for visual comparison preview
@@ -67,7 +63,7 @@ export const FaceVerificationModal = ({ isOpen, onClose, electionId, onVerified 
     };
   }, [isOpen]);
 
-  // 2. Start Camera
+  // 2. Start Camera (Optimized resolution for instant 30+ FPS stream)
   const startCamera = useCallback(async () => {
     try {
       setCameraError(null);
@@ -79,7 +75,11 @@ export const FaceVerificationModal = ({ isOpen, onClose, electionId, onVerified 
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
+        video: { 
+          width: { ideal: 640, max: 640 }, 
+          height: { ideal: 480, max: 480 }, 
+          facingMode: 'user' 
+        },
         audio: false
       });
 
@@ -121,59 +121,107 @@ export const FaceVerificationModal = ({ isOpen, onClose, electionId, onVerified 
     return () => stopCamera();
   }, [isOpen, modelsLoaded, verificationResult, startCamera, stopCamera]);
 
-  // 4. Live detection loop
+  // 4. Ultra-Fast Live detection loop (pure bounding box detection, 0 descriptor lag)
   useEffect(() => {
-    if (!cameraActive || verificationResult || !videoRef.current) return;
+    if (!cameraActive || verificationResult || !videoRef.current || verifying) return;
 
     const runDetection = async () => {
-      if (!videoRef.current || videoRef.current.paused || videoRef.current.ended) return;
+      if (!videoRef.current || videoRef.current.paused || videoRef.current.ended || verifying) return;
+      if (isDetectingRef.current) return;
+      isDetectingRef.current = true;
 
       try {
-        const detections = await faceapi
-          .detectAllFaces(videoRef.current, new faceapi.TinyFaceDetectorOptions({ inputSize: 224, scoreThreshold: 0.60 }))
-          .withFaceLandmarks()
-          .withFaceDescriptors();
+        const detections = await faceapi.detectAllFaces(
+          videoRef.current,
+          new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.55 })
+        );
+
+        const ctx = canvasRef.current?.getContext('2d');
+        if (canvasRef.current && videoRef.current) {
+          const displaySize = {
+            width: videoRef.current.videoWidth || 640,
+            height: videoRef.current.videoHeight || 480
+          };
+          faceapi.matchDimensions(canvasRef.current, displaySize);
+          ctx.clearRect(0, 0, displaySize.width, displaySize.height);
+        }
 
         if (detections && detections.length === 1) {
           const singleDetection = detections[0];
           setFaceDetected(true);
           setErrorMessage('');
 
-          if (canvasRef.current && videoRef.current) {
+          if (ctx && canvasRef.current && videoRef.current) {
             const displaySize = {
               width: videoRef.current.videoWidth || 640,
               height: videoRef.current.videoHeight || 480
             };
-            faceapi.matchDimensions(canvasRef.current, displaySize);
             const resized = faceapi.resizeResults(singleDetection, displaySize);
-            const ctx = canvasRef.current.getContext('2d');
-            ctx.clearRect(0, 0, displaySize.width, displaySize.height);
+            const box = resized.box || resized.detection?.box;
+            if (box) {
+              ctx.lineWidth = 3;
+              ctx.strokeStyle = '#22C55E';
+              ctx.strokeRect(box.x, box.y, box.width, box.height);
 
-            const box = resized.detection.box;
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = '#22C55E';
-            ctx.strokeRect(box.x, box.y, box.width, box.height);
+              // HUD corners
+              const length = 16;
+              ctx.lineWidth = 4;
+              ctx.strokeStyle = '#FACC15';
+
+              ctx.beginPath();
+              ctx.moveTo(box.x, box.y + length);
+              ctx.lineTo(box.x, box.y);
+              ctx.lineTo(box.x + length, box.y);
+              ctx.stroke();
+
+              ctx.beginPath();
+              ctx.moveTo(box.x + box.width - length, box.y);
+              ctx.lineTo(box.x + box.width, box.y);
+              ctx.lineTo(box.x + box.width, box.y + length);
+              ctx.stroke();
+
+              ctx.beginPath();
+              ctx.moveTo(box.x, box.y + box.height - length);
+              ctx.lineTo(box.x, box.y + box.height);
+              ctx.lineTo(box.x + length, box.y + box.height);
+              ctx.stroke();
+
+              ctx.beginPath();
+              ctx.moveTo(box.x + box.width - length, box.y + box.height);
+              ctx.lineTo(box.x + box.width, box.y + box.height);
+              ctx.lineTo(box.x + box.width, box.y + box.height - length);
+              ctx.stroke();
+            }
           }
         } else if (detections && detections.length > 1) {
           setFaceDetected(false);
           setErrorMessage(`Multiple faces detected (${detections.length}). Only 1 voter allowed in the frame!`);
-          if (canvasRef.current) {
-            const ctx = canvasRef.current.getContext('2d');
-            ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+          if (ctx && canvasRef.current && videoRef.current) {
+            const displaySize = {
+              width: videoRef.current.videoWidth || 640,
+              height: videoRef.current.videoHeight || 480
+            };
+            const resized = faceapi.resizeResults(detections, displaySize);
+            resized.forEach(det => {
+              const box = det.box || det.detection?.box;
+              if (box) {
+                ctx.lineWidth = 3;
+                ctx.strokeStyle = '#EF4444';
+                ctx.strokeRect(box.x, box.y, box.width, box.height);
+              }
+            });
           }
         } else {
           setFaceDetected(false);
-          if (canvasRef.current) {
-            const ctx = canvasRef.current.getContext('2d');
-            ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-          }
         }
       } catch (err) {
         // Silently retry next frame
+      } finally {
+        isDetectingRef.current = false;
       }
     };
 
-    detectIntervalRef.current = setInterval(runDetection, 180);
+    detectIntervalRef.current = setInterval(runDetection, 100);
 
     return () => {
       if (detectIntervalRef.current) clearInterval(detectIntervalRef.current);

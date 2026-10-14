@@ -77,11 +77,23 @@ CREATE TABLE IF NOT EXISTS parties (
   code TEXT,
   logo_url TEXT,
   description TEXT,
+  election_id INTEGER REFERENCES elections(id),
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
   updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 `;
 
 db.exec(createTables);
+
+// Safe migration for existing databases: ensure election_id column exists
+try {
+  const tableInfo = db.prepare("PRAGMA table_info(parties)").all();
+  const hasElectionId = tableInfo.some(col => col.name === 'election_id');
+  if (!hasElectionId) {
+    db.exec("ALTER TABLE parties ADD COLUMN election_id INTEGER REFERENCES elections(id);");
+  }
+} catch (migErr) {
+  // column check/add already handled
+}
 
 export default db;

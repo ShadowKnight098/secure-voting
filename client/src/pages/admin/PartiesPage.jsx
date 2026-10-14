@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Flag, Plus, Trash2, Edit2, Search, Users, AlertCircle, Building2, Check } from 'lucide-react';
+import { Flag, Plus, Trash2, Edit2, Search, Users, AlertCircle, Building2, Check, Vote } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { partyService } from '../../services/partyService';
+import { electionService } from '../../services/electionService';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Input from '../../components/ui/Input';
@@ -11,8 +12,10 @@ import EmptyState from '../../components/ui/EmptyState';
 
 export const PartiesPage = () => {
   const [parties, setParties] = useState([]);
+  const [elections, setElections] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedElectionFilter, setSelectedElectionFilter] = useState('');
 
   // Modal create/edit state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -22,31 +25,42 @@ export const PartiesPage = () => {
     name: '',
     code: '',
     description: '',
-    logo_url: ''
+    logo_url: '',
+    election_id: ''
   });
 
   // Delete confirm dialog
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, id: null, name: '', candidateCount: 0 });
 
-  const fetchParties = async () => {
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const data = await partyService.getAll();
-      setParties(data || []);
+      const [partiesData, electionsData] = await Promise.all([
+        partyService.getAll(),
+        electionService.getAll({ limit: 100 })
+      ]);
+      setParties(partiesData || []);
+      setElections(electionsData?.elections || []);
     } catch (err) {
-      toast.error('Failed to load political parties roster');
+      toast.error('Failed to load political parties or elections');
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchParties();
+    fetchData();
   }, []);
 
   const handleOpenCreate = () => {
     setEditingParty(null);
-    setFormData({ name: '', code: '', description: '', logo_url: '' });
+    setFormData({ 
+      name: '', 
+      code: '', 
+      description: '', 
+      logo_url: '', 
+      election_id: selectedElectionFilter || '' 
+    });
     setIsModalOpen(true);
   };
 
@@ -56,7 +70,8 @@ export const PartiesPage = () => {
       name: party.name || '',
       code: party.code || '',
       description: party.description || '',
-      logo_url: party.logo_url || ''
+      logo_url: party.logo_url || '',
+      election_id: party.election_id ? String(party.election_id) : ''
     });
     setIsModalOpen(true);
   };
@@ -78,7 +93,7 @@ export const PartiesPage = () => {
         toast.success(`Party "${formData.name}" created successfully`);
       }
       setIsModalOpen(false);
-      fetchParties();
+      fetchData();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to save party');
     } finally {
@@ -91,17 +106,23 @@ export const PartiesPage = () => {
       await partyService.delete(deleteDialog.id);
       toast.success('Party removed successfully');
       setDeleteDialog({ isOpen: false, id: null, name: '', candidateCount: 0 });
-      fetchParties();
+      fetchData();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to delete party');
     }
   };
 
-  const filteredParties = parties.filter(p => 
-    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (p.code && p.code.toLowerCase().includes(searchTerm.toLowerCase())) ||
-    (p.description && p.description.toLowerCase().includes(searchTerm.toLowerCase()))
-  );
+  const filteredParties = parties.filter(p => {
+    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (p.code && p.code.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (p.description && p.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
+      (p.election_title && p.election_title.toLowerCase().includes(searchTerm.toLowerCase()));
+
+    const matchesElection = !selectedElectionFilter || 
+      (selectedElectionFilter === 'general' ? (!p.election_id) : (String(p.election_id) === String(selectedElectionFilter)));
+
+    return matchesSearch && matchesElection;
+  });
 
   return (
     <div className="space-y-6 animate-fade-in text-ink">
@@ -113,7 +134,7 @@ export const PartiesPage = () => {
             Political Parties
           </h2>
           <p className="text-ink/70 font-medium text-sm mt-1">
-            Register and manage recognized political parties, organizations, and independent rosters.
+            Register and manage recognized political parties and choose which elections they contest.
           </p>
         </div>
         <Button variant="primary" onClick={handleOpenCreate} icon={Plus}>
@@ -122,19 +143,38 @@ export const PartiesPage = () => {
       </div>
 
       <Card className="p-4 sm:p-6 shadow-neo">
-        {/* Search */}
-        <div className="flex flex-col sm:flex-row gap-4 mb-6 justify-between items-stretch sm:items-center">
-          <div className="w-full sm:w-80">
-            <Input
-              icon={Search}
-              placeholder="Search parties or codes..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+        {/* Search & Election Filter */}
+        <div className="flex flex-col md:flex-row gap-4 mb-6 justify-between items-stretch md:items-center">
+          <div className="flex flex-col sm:flex-row gap-3 flex-1">
+            <div className="w-full sm:w-72">
+              <Input
+                icon={Search}
+                placeholder="Search parties, codes..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+
+            <div className="w-full sm:w-64">
+              <select
+                value={selectedElectionFilter}
+                onChange={(e) => setSelectedElectionFilter(e.target.value)}
+                className="w-full px-3.5 py-2.5 bg-surface border-2 border-ink rounded-[10px] text-xs font-bold text-ink focus:outline-none focus:ring-2 focus:ring-violet shadow-neo-sm h-[42px]"
+              >
+                <option value="">All Contesting Parties ({parties.length})</option>
+                <option value="general">National / Open to All</option>
+                {elections.map((el) => (
+                  <option key={el.id} value={el.id}>
+                    Contesting: {el.title}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-          <div className="text-xs font-bold text-ink/70 flex items-center gap-1.5 px-3 py-1.5 bg-lavender/60 border border-ink rounded-[10px]">
+
+          <div className="text-xs font-bold text-ink/70 flex items-center gap-1.5 px-3 py-2 bg-lavender/60 border border-ink rounded-[10px] self-start md:self-auto">
             <Building2 size={15} className="text-violet" />
-            <span>Total Parties: <strong>{parties.length}</strong></span>
+            <span>Showing: <strong>{filteredParties.length}</strong> / {parties.length}</span>
           </div>
         </div>
 
@@ -142,14 +182,14 @@ export const PartiesPage = () => {
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {[1, 2, 3].map(i => (
-              <div key={i} className="h-44 rounded-[14px] animate-skeleton"></div>
+              <div key={i} className="h-48 rounded-[14px] animate-skeleton"></div>
             ))}
           </div>
         ) : filteredParties.length === 0 ? (
           <EmptyState
             icon={Flag}
-            title={searchTerm ? 'No parties matching search' : 'No political parties registered'}
-            description={searchTerm ? 'Try a different search keyword.' : 'Add your first political party to associate candidates with.'}
+            title={searchTerm || selectedElectionFilter ? 'No parties matching filter' : 'No political parties registered'}
+            description={searchTerm || selectedElectionFilter ? 'Try clearing your search or election filter.' : 'Add your first political party and choose which elections they contest.'}
             actionLabel="Add Party"
             onAction={handleOpenCreate}
           />
@@ -194,13 +234,28 @@ export const PartiesPage = () => {
                   {/* Party Name */}
                   <h3 className="text-lg font-black text-ink tracking-tight">{party.name}</h3>
 
+                  {/* Contesting Election Badge */}
+                  <div className="mt-2">
+                    {party.election_title ? (
+                      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sun/40 border border-ink text-[11px] font-extrabold text-ink shadow-neo-sm">
+                        <Vote size={13} className="text-violet" />
+                        <span className="truncate max-w-[180px]">{party.election_title}</span>
+                      </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-mint/40 border border-ink text-[11px] font-extrabold text-ink shadow-neo-sm">
+                        <Check size={13} className="text-mint fill-ink" />
+                        <span>All Elections (Open)</span>
+                      </span>
+                    )}
+                  </div>
+
                   {/* Description */}
                   {party.description ? (
-                    <p className="text-xs font-medium text-ink/75 mt-2 line-clamp-3 leading-relaxed">
+                    <p className="text-xs font-medium text-ink/75 mt-3 line-clamp-3 leading-relaxed">
                       {party.description}
                     </p>
                   ) : (
-                    <p className="text-xs italic text-ink/50 mt-2">No description provided</p>
+                    <p className="text-xs italic text-ink/50 mt-3">No description provided</p>
                   )}
                 </div>
 
@@ -235,7 +290,7 @@ export const PartiesPage = () => {
               placeholder="e.g. Liberty Alliance Party"
               value={formData.name}
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              className="w-full px-3.5 py-2.5 bg-surface border-2 border-ink rounded-[10px] text-sm font-bold text-ink focus:outline-none focus:ring-2 focus:ring-violet"
+              className="w-full px-3.5 py-2.5 bg-surface border-2 border-ink rounded-[10px] text-sm font-bold text-ink focus:outline-none focus:ring-2 focus:ring-violet shadow-neo-sm"
             />
           </div>
 
@@ -248,8 +303,29 @@ export const PartiesPage = () => {
               placeholder="e.g. LAP"
               value={formData.code}
               onChange={(e) => setFormData({ ...formData, code: e.target.value.toUpperCase() })}
-              className="w-full px-3.5 py-2.5 bg-surface border-2 border-ink rounded-[10px] text-sm font-bold text-ink focus:outline-none focus:ring-2 focus:ring-violet"
+              className="w-full px-3.5 py-2.5 bg-surface border-2 border-ink rounded-[10px] text-sm font-bold text-ink focus:outline-none focus:ring-2 focus:ring-violet shadow-neo-sm"
             />
+          </div>
+
+          <div>
+            <label className="block text-xs font-extrabold uppercase text-ink mb-1.5">
+              Which Election Does this Party Want to Contest / Join?
+            </label>
+            <select
+              value={formData.election_id}
+              onChange={(e) => setFormData({ ...formData, election_id: e.target.value })}
+              className="w-full px-3.5 py-2.5 bg-surface border-2 border-ink rounded-[10px] text-sm font-bold text-ink focus:outline-none focus:ring-2 focus:ring-violet shadow-neo-sm cursor-pointer"
+            >
+              <option value="">All Elections / National (Open to any election)</option>
+              {elections.map((el) => (
+                <option key={el.id} value={el.id}>
+                  {el.title} ({el.status.toUpperCase()})
+                </option>
+              ))}
+            </select>
+            <p className="text-[11px] text-ink/65 font-medium mt-1">
+              Select the election this party is participating in, or keep "All Elections" for open general participation.
+            </p>
           </div>
 
           <div>
@@ -261,7 +337,7 @@ export const PartiesPage = () => {
               placeholder="Core values, policies, or manifesto overview..."
               value={formData.description}
               onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-              className="w-full px-3.5 py-2.5 bg-surface border-2 border-ink rounded-[10px] text-sm font-bold text-ink focus:outline-none focus:ring-2 focus:ring-violet"
+              className="w-full px-3.5 py-2.5 bg-surface border-2 border-ink rounded-[10px] text-sm font-bold text-ink focus:outline-none focus:ring-2 focus:ring-violet shadow-neo-sm"
             />
           </div>
 

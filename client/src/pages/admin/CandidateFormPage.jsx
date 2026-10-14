@@ -28,7 +28,7 @@ export const CandidateFormPage = () => {
   useEffect(() => {
     const initData = async () => {
       try {
-        const partyList = await partyService.getAll();
+        const partyList = await partyService.getAll({ election_id: electionId });
         setParties(partyList || []);
 
         if (isEdit) {
