@@ -39,8 +39,15 @@ export const PartiesPage = () => {
         partyService.getAll(),
         electionService.getAll({ limit: 100 })
       ]);
-      setParties(partiesData || []);
-      setElections(electionsData?.elections || []);
+      const partyList = Array.isArray(partiesData) 
+        ? partiesData 
+        : (Array.isArray(partiesData?.data) ? partiesData.data : []);
+      setParties(partyList);
+
+      const elList = Array.isArray(electionsData?.data)
+        ? electionsData.data
+        : (Array.isArray(electionsData?.elections) ? electionsData.elections : []);
+      setElections(elList);
     } catch (err) {
       toast.error('Failed to load political parties or elections');
     } finally {
@@ -112,11 +119,19 @@ export const PartiesPage = () => {
     }
   };
 
-  const filteredParties = parties.filter(p => {
-    const matchesSearch = p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (p.code && p.code.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (p.description && p.description.toLowerCase().includes(searchTerm.toLowerCase())) ||
-      (p.election_title && p.election_title.toLowerCase().includes(searchTerm.toLowerCase()));
+  const partyList = Array.isArray(parties) ? parties : [];
+  const filteredParties = partyList.filter(p => {
+    if (!p) return false;
+    const pName = p.name || '';
+    const pCode = p.code || '';
+    const pDesc = p.description || '';
+    const pElec = p.election_title || '';
+    const q = (searchTerm || '').toLowerCase();
+
+    const matchesSearch = pName.toLowerCase().includes(q) ||
+      pCode.toLowerCase().includes(q) ||
+      pDesc.toLowerCase().includes(q) ||
+      pElec.toLowerCase().includes(q);
 
     const matchesElection = !selectedElectionFilter || 
       (selectedElectionFilter === 'general' ? (!p.election_id) : (String(p.election_id) === String(selectedElectionFilter)));
