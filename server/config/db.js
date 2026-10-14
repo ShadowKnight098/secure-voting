@@ -1,6 +1,10 @@
 import Database from 'better-sqlite3';
+import bcrypt from 'bcryptjs';
 
-const db = new Database('database.sqlite', { verbose: console.log });
+const dbPath = process.env.DB_PATH || 'database.sqlite';
+const db = new Database(dbPath, { 
+  verbose: process.env.NODE_ENV === 'production' ? null : console.log 
+});
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
 
@@ -94,6 +98,21 @@ try {
   }
 } catch (migErr) {
   // column check/add already handled
+}
+
+// Ensure default super_admin account exists on initial deployment
+try {
+  const adminCheck = db.prepare('SELECT COUNT(*) as count FROM admins').get();
+  if (adminCheck && adminCheck.count === 0) {
+    const defaultHash = bcrypt.hashSync('admin123', 10);
+    db.prepare(`
+      INSERT INTO admins (username, email, password_hash, role) 
+      VALUES (?, ?, ?, ?)
+    `).run('admin', 'admin@votingsystem.com', defaultHash, 'super_admin');
+    console.log('[DB] Initial super-admin created: admin / admin123');
+  }
+} catch (seedErr) {
+  // ignore if table doesn't exist yet
 }
 
 export default db;

@@ -18,6 +18,7 @@ import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
 import FaceVerificationModal from '../../components/biometrics/FaceVerificationModal';
+import { getImageUrl } from '../../utils/imageUrl';
 
 export const VoterBallotPage = () => {
   const { electionId } = useParams();
@@ -196,7 +197,7 @@ export const VoterBallotPage = () => {
                       <div className="w-16 h-16 rounded-[12px] border-2 border-ink bg-lavender flex-shrink-0 overflow-hidden shadow-neo-sm flex items-center justify-center font-black text-xl text-violet">
                         {cand.photo_url ? (
                           <img 
-                            src={cand.photo_url} 
+                            src={getImageUrl(cand.photo_url)} 
                             alt={cand.name} 
                             className="w-full h-full object-cover" 
                           />

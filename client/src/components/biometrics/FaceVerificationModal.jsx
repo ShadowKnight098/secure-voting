@@ -13,6 +13,7 @@ import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import { voterService } from '../../services/voterService';
 import { loadFaceApiModels } from '../../utils/faceApiLoader';
+import { getImageUrl } from '../../utils/imageUrl';
 
 export const FaceVerificationModal = ({ isOpen, onClose, electionId, onVerified }) => {
   const videoRef = useRef(null);
@@ -371,7 +372,7 @@ export const FaceVerificationModal = ({ isOpen, onClose, electionId, onVerified 
                   {registeredPhoto && (
                     <div className="absolute top-3 left-3 bg-surface border-2 border-ink rounded-[10px] p-1 shadow-neo-sm flex items-center gap-2 z-10">
                       <img 
-                        src={registeredPhoto} 
+                        src={getImageUrl(registeredPhoto)} 
                         alt="Registered scan" 
                         className="w-10 h-10 rounded-[6px] object-cover border border-ink"
                       />

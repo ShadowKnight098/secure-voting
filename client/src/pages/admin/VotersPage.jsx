@@ -20,6 +20,7 @@ import Input from '../../components/ui/Input';
 import Modal from '../../components/ui/Modal';
 import EmptyState from '../../components/ui/EmptyState';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { getImageUrl } from '../../utils/imageUrl';
 
 const verificationTabs = [
   { id: 'all', label: 'All voters' },
@@ -276,10 +277,10 @@ export const VotersPage = () => {
                           <div className="w-10 h-10 rounded-[10px] border-2 border-ink bg-violet text-white font-extrabold flex items-center justify-center shadow-neo-sm flex-shrink-0 overflow-hidden">
                             {voter.face_photo_url ? (
                               <img 
-                                src={voter.face_photo_url} 
+                                src={getImageUrl(voter.face_photo_url)} 
                                 alt={voter.full_name} 
                                 className="w-full h-full object-cover cursor-pointer"
-                                onClick={() => setPhotoPreview({ url: voter.face_photo_url, name: voter.full_name })}
+                                onClick={() => setPhotoPreview({ url: getImageUrl(voter.face_photo_url), name: voter.full_name })}
                               />
                             ) : (
                               <span>{voter.full_name.charAt(0).toUpperCase()}</span>
@@ -539,7 +540,7 @@ export const VotersPage = () => {
           <div className="w-full max-w-sm mx-auto aspect-square rounded-[14px] border-2 border-ink overflow-hidden shadow-neo bg-slate-900">
             {photoPreview?.url && (
               <img
-                src={photoPreview.url}
+                src={getImageUrl(photoPreview.url)}
                 alt={photoPreview.name}
                 className="w-full h-full object-cover"
               />

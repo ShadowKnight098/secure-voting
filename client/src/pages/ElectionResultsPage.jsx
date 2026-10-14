@@ -16,6 +16,7 @@ import { voteService } from '../services/voteService';
 import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
+import { getImageUrl } from '../utils/imageUrl';
 
 export const ElectionResultsPage = () => {
   const { id } = useParams();
@@ -134,7 +135,7 @@ export const ElectionResultsPage = () => {
             <div className="flex flex-col sm:flex-row items-center gap-6">
               <div className="w-24 h-24 rounded-[14px] border-2 border-ink bg-surface overflow-hidden shadow-neo flex-shrink-0 flex items-center justify-center font-black text-2xl text-violet">
                 {winner.photo_url ? (
-                  <img src={winner.photo_url} alt={winner.name} className="w-full h-full object-cover" />
+                  <img src={getImageUrl(winner.photo_url)} alt={winner.name} className="w-full h-full object-cover" />
                 ) : (
                   <span>{winner.name.charAt(0).toUpperCase()}</span>
                 )}

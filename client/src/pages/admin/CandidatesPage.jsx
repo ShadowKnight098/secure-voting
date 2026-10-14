@@ -8,6 +8,7 @@ import Button from '../../components/ui/Button';
 import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import { getImageUrl } from '../../utils/imageUrl';
 
 export const CandidatesPage = () => {
   const { electionId } = useParams();
@@ -109,8 +110,8 @@ export const CandidatesPage = () => {
               {/* Candidate Info with Identical Styling Rule */}
               <div className="flex items-center flex-col text-center pt-2">
                 <div className="w-20 h-20 rounded-[12px] overflow-hidden border-2 border-ink bg-violet text-white shadow-neo-sm mb-4 flex items-center justify-center relative flex-shrink-0">
-                  {candidate.photoUrl ? (
-                    <img src={candidate.photoUrl} alt={candidate.name} className="w-full h-full object-cover" />
+                  {(candidate.photoUrl || candidate.photo_url) ? (
+                    <img src={getImageUrl(candidate.photoUrl || candidate.photo_url)} alt={candidate.name} className="w-full h-full object-cover" />
                   ) : (
                     <span className="text-2xl font-extrabold text-white">
                       {candidate.name?.charAt(0).toUpperCase() || 'C'}
