@@ -19,6 +19,11 @@ export const partyService = {
   delete: async (id) => {
     const res = await api.delete(`/parties/${id}`);
     return res.data?.data || res.data;
+  },
+
+  sync: async () => {
+    const res = await api.post('/parties/sync');
+    return res.data;
   }
 };
 

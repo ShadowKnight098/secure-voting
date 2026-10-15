@@ -168,13 +168,13 @@ export const VoterBallotPage = () => {
         <div className="space-y-4">
           <h2 className="text-xl font-black text-ink flex items-center gap-2">
             <Award className="text-violet" size={22} />
-            Select Your Candidate:
+            Select Your Candidate / Political Party:
           </h2>
 
           {candidates.length === 0 ? (
             <Card className="p-8 text-center text-ink/70">
               <AlertCircle size={32} className="mx-auto mb-2 text-ink/50" />
-              <p className="font-bold">No candidates registered for this election yet.</p>
+              <p className="font-bold">No candidates or political parties registered for this election yet.</p>
             </Card>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

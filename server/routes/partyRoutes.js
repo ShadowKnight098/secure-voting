@@ -1,9 +1,9 @@
-import express from 'express';
 import { 
   getAllParties, 
   createParty, 
   updateParty, 
-  deleteParty 
+  deleteParty,
+  syncPartiesToElections
 } from '../controllers/partyController.js';
 import { verifyToken, requireAdmin } from '../middleware/auth.js';
 
@@ -13,6 +13,7 @@ const router = express.Router();
 router.get('/', getAllParties);
 
 // Admin-only mutation routes
+router.post('/sync', verifyToken, requireAdmin, syncPartiesToElections);
 router.post('/', verifyToken, requireAdmin, createParty);
 router.put('/:id', verifyToken, requireAdmin, updateParty);
 router.delete('/:id', verifyToken, requireAdmin, deleteParty);

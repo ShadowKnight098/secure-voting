@@ -46,6 +46,19 @@ export const createParty = (req, res) => {
       VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
     `).run(trimmedName, code?.trim() || null, description?.trim() || null, logo_url?.trim() || null, targetElectionId);
 
+    // Automatically attach this party to all active or upcoming elections as a voteable option
+    const activeElections = db.prepare("SELECT id FROM elections WHERE status IN ('upcoming', 'active')").all();
+    for (const el of activeElections) {
+      const alreadyCand = db.prepare('SELECT id FROM candidates WHERE election_id = ? AND LOWER(name) = LOWER(?)').get(el.id, trimmedName);
+      if (!alreadyCand) {
+        const partyLabel = code?.trim() ? `${trimmedName} (${code.trim().toUpperCase()})` : trimmedName;
+        db.prepare(`
+          INSERT INTO candidates (name, party, bio, photo_url, election_id)
+          VALUES (?, ?, ?, ?, ?)
+        `).run(trimmedName, partyLabel, description?.trim() || '', logo_url?.trim() || null, el.id);
+      }
+    }
+
     const newParty = db.prepare(`
       SELECT p.*, e.title as election_title 
       FROM parties p 
@@ -53,7 +66,7 @@ export const createParty = (req, res) => {
       WHERE p.id = ?
     `).get(result.lastInsertRowid);
 
-    return successResponse(res, newParty, 'Political party created successfully', 201);
+    return successResponse(res, newParty, 'Political party created and added to elections successfully', 201);
   } catch (error) {
     return errorResponse(res, 'Failed to create political party', 500, error);
   }
@@ -131,5 +144,35 @@ export const deleteParty = (req, res) => {
     return successResponse(res, { deletedId: id, candidateCount }, 'Party removed successfully');
   } catch (error) {
     return errorResponse(res, 'Failed to delete political party', 500, error);
+  }
+};
+
+export const syncPartiesToElections = (req, res) => {
+  try {
+    const parties = db.prepare('SELECT * FROM parties').all();
+    if (parties.length === 0) {
+      return successResponse(res, { syncedCount: 0 }, 'No parties available to sync');
+    }
+
+    const elections = db.prepare("SELECT * FROM elections WHERE status IN ('upcoming', 'active')").all();
+    let syncedCount = 0;
+
+    for (const el of elections) {
+      for (const p of parties) {
+        const existing = db.prepare('SELECT id FROM candidates WHERE election_id = ? AND LOWER(name) = LOWER(?)').get(el.id, p.name);
+        if (!existing) {
+          const partyLabel = p.code ? `${p.name} (${p.code})` : p.name;
+          db.prepare(`
+            INSERT INTO candidates (name, party, bio, photo_url, election_id)
+            VALUES (?, ?, ?, ?, ?)
+          `).run(p.name, partyLabel, p.description || '', p.logo_url || null, el.id);
+          syncedCount++;
+        }
+      }
+    }
+
+    return successResponse(res, { syncedCount, electionsCount: elections.length }, `Successfully synced parties across all active elections`);
+  } catch (error) {
+    return errorResponse(res, 'Failed to sync parties to elections', 500, error);
   }
 };

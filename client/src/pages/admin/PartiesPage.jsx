@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Flag, Plus, Trash2, Edit2, Search, Users, AlertCircle, Building2, Check, Vote } from 'lucide-react';
+import { Flag, Plus, Trash2, Edit2, Search, Users, AlertCircle, Building2, Check, Vote, RefreshCw, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { partyService } from '../../services/partyService';
 import { electionService } from '../../services/electionService';
@@ -14,8 +14,8 @@ export const PartiesPage = () => {
   const [parties, setParties] = useState([]);
   const [elections, setElections] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [syncing, setSyncing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
-  const [selectedElectionFilter, setSelectedElectionFilter] = useState('');
 
   // Modal create/edit state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -59,6 +59,19 @@ export const PartiesPage = () => {
     fetchData();
   }, []);
 
+  const handleSync = async () => {
+    setSyncing(true);
+    try {
+      const res = await partyService.sync();
+      toast.success(res.message || 'All parties successfully synced to ballots!');
+      fetchData();
+    } catch (err) {
+      toast.error('Failed to sync parties');
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const handleOpenCreate = () => {
     setEditingParty(null);
     setFormData({ 
@@ -66,7 +79,7 @@ export const PartiesPage = () => {
       code: '', 
       description: '', 
       logo_url: '', 
-      election_id: selectedElectionFilter || '' 
+      election_id: '' 
     });
     setIsModalOpen(true);
   };
@@ -97,7 +110,7 @@ export const PartiesPage = () => {
         toast.success(`Party "${formData.name}" updated successfully`);
       } else {
         await partyService.create(formData);
-        toast.success(`Party "${formData.name}" created successfully`);
+        toast.success(`Party "${formData.name}" created and added to elections!`);
       }
       setIsModalOpen(false);
       fetchData();
@@ -125,18 +138,11 @@ export const PartiesPage = () => {
     const pName = p.name || '';
     const pCode = p.code || '';
     const pDesc = p.description || '';
-    const pElec = p.election_title || '';
     const q = (searchTerm || '').toLowerCase();
 
-    const matchesSearch = pName.toLowerCase().includes(q) ||
+    return pName.toLowerCase().includes(q) ||
       pCode.toLowerCase().includes(q) ||
-      pDesc.toLowerCase().includes(q) ||
-      pElec.toLowerCase().includes(q);
-
-    const matchesElection = !selectedElectionFilter || 
-      (selectedElectionFilter === 'general' ? (!p.election_id) : (String(p.election_id) === String(selectedElectionFilter)));
-
-    return matchesSearch && matchesElection;
+      pDesc.toLowerCase().includes(q);
   });
 
   return (
@@ -149,47 +155,53 @@ export const PartiesPage = () => {
             Political Parties
           </h2>
           <p className="text-ink/70 font-medium text-sm mt-1">
-            Register and manage recognized political parties and choose which elections they contest.
+            Register recognized political parties. Registered parties automatically appear on voter ballots across all elections.
           </p>
         </div>
-        <Button variant="primary" onClick={handleOpenCreate} icon={Plus}>
-          Add Party
-        </Button>
+        <div className="flex items-center gap-3 w-full sm:w-auto">
+          <Button 
+            variant="secondary" 
+            onClick={handleSync} 
+            loading={syncing}
+            icon={RefreshCw}
+            className="shadow-neo-sm text-xs"
+          >
+            Sync to All Ballots
+          </Button>
+          <Button variant="primary" onClick={handleOpenCreate} icon={Plus}>
+            Add Party
+          </Button>
+        </div>
+      </div>
+
+      {/* Global Availability Banner */}
+      <div className="bg-sun/30 border-2 border-ink rounded-[14px] p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-neo-sm">
+        <div className="flex items-center gap-3">
+          <Sparkles className="text-violet flex-shrink-0" size={24} />
+          <div>
+            <h4 className="font-extrabold text-sm text-ink">Universal Ballot Availability</h4>
+            <p className="text-xs font-medium text-ink/80 mt-0.5">
+              Parties registered here are recognized across the voting system and immediately voteable by all eligible voters. You do not need to re-register parties for individual elections!
+            </p>
+          </div>
+        </div>
       </div>
 
       <Card className="p-4 sm:p-6 shadow-neo">
-        {/* Search & Election Filter */}
+        {/* Search */}
         <div className="flex flex-col md:flex-row gap-4 mb-6 justify-between items-stretch md:items-center">
-          <div className="flex flex-col sm:flex-row gap-3 flex-1">
-            <div className="w-full sm:w-72">
-              <Input
-                icon={Search}
-                placeholder="Search parties, codes..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-
-            <div className="w-full sm:w-64">
-              <select
-                value={selectedElectionFilter}
-                onChange={(e) => setSelectedElectionFilter(e.target.value)}
-                className="w-full px-3.5 py-2.5 bg-surface border-2 border-ink rounded-[10px] text-xs font-bold text-ink focus:outline-none focus:ring-2 focus:ring-violet shadow-neo-sm h-[42px]"
-              >
-                <option value="">All Contesting Parties ({parties.length})</option>
-                <option value="general">National / Open to All</option>
-                {elections.map((el) => (
-                  <option key={el.id} value={el.id}>
-                    Contesting: {el.title}
-                  </option>
-                ))}
-              </select>
-            </div>
+          <div className="w-full sm:w-80">
+            <Input
+              icon={Search}
+              placeholder="Search recognized parties..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
           </div>
 
           <div className="text-xs font-bold text-ink/70 flex items-center gap-1.5 px-3 py-2 bg-lavender/60 border border-ink rounded-[10px] self-start md:self-auto">
             <Building2 size={15} className="text-violet" />
-            <span>Showing: <strong>{filteredParties.length}</strong> / {parties.length}</span>
+            <span>Total Recognized Parties: <strong>{filteredParties.length}</strong></span>
           </div>
         </div>
 
@@ -324,22 +336,22 @@ export const PartiesPage = () => {
 
           <div>
             <label className="block text-xs font-extrabold uppercase text-ink mb-1.5">
-              Which Election Does this Party Want to Contest / Join?
+              Election Participation
             </label>
             <select
               value={formData.election_id}
               onChange={(e) => setFormData({ ...formData, election_id: e.target.value })}
               className="w-full px-3.5 py-2.5 bg-surface border-2 border-ink rounded-[10px] text-sm font-bold text-ink focus:outline-none focus:ring-2 focus:ring-violet shadow-neo-sm cursor-pointer"
             >
-              <option value="">All Elections / National (Open to any election)</option>
+              <option value="">All Elections / Universal Ballot (Recommended)</option>
               {elections.map((el) => (
                 <option key={el.id} value={el.id}>
-                  {el.title} ({el.status.toUpperCase()})
+                  Specific: {el.title} ({el.status.toUpperCase()})
                 </option>
               ))}
             </select>
-            <p className="text-[11px] text-ink/65 font-medium mt-1">
-              Select the election this party is participating in, or keep "All Elections" for open general participation.
+            <p className="text-[11px] text-ink/75 font-medium mt-1">
+              Default is "All Elections", which automatically places this party onto the ballot for all active and upcoming elections.
             </p>
           </div>
 

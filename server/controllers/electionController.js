@@ -134,7 +134,26 @@ export const create = (req, res) => {
       created_by
     );
 
-    return successResponse(res, { id: result.lastInsertRowid }, 'Election created successfully', 201);
+    const newElectionId = result.lastInsertRowid;
+
+    // Automatically attach all recognized political parties to the new election
+    try {
+      const allParties = db.prepare('SELECT * FROM parties').all();
+      if (allParties.length > 0) {
+        const insertCand = db.prepare(`
+          INSERT INTO candidates (name, party, bio, photo_url, election_id)
+          VALUES (?, ?, ?, ?, ?)
+        `);
+        for (const p of allParties) {
+          const partyLabel = p.code ? `${p.name} (${p.code})` : p.name;
+          insertCand.run(p.name, partyLabel, p.description || '', p.logo_url || null, newElectionId);
+        }
+      }
+    } catch (partyAttachErr) {
+      console.warn('Could not auto-attach parties to election:', partyAttachErr.message);
+    }
+
+    return successResponse(res, { id: newElectionId }, 'Election created and parties populated successfully', 201);
   } catch (error) {
     return errorResponse(res, 'Failed to create election', 500, error);
   }

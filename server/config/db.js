@@ -115,4 +115,28 @@ try {
   // ignore if table doesn't exist yet
 }
 
+// Ensure any elections without candidates automatically have registered parties populated
+try {
+  const parties = db.prepare('SELECT * FROM parties').all();
+  if (parties.length > 0) {
+    const elections = db.prepare('SELECT * FROM elections').all();
+    for (const el of elections) {
+      const count = db.prepare('SELECT COUNT(*) as c FROM candidates WHERE election_id = ?').get(el.id).c;
+      if (count === 0) {
+        const insertStmt = db.prepare(`
+          INSERT INTO candidates (name, party, bio, photo_url, election_id)
+          VALUES (?, ?, ?, ?, ?)
+        `);
+        for (const p of parties) {
+          const partyLabel = p.code ? `${p.name} (${p.code})` : p.name;
+          insertStmt.run(p.name, partyLabel, p.description || '', p.logo_url || null, el.id);
+        }
+        console.log(`[DB] Auto-populated ${parties.length} parties as ballot candidates for election "${el.title}" (ID: ${el.id})`);
+      }
+    }
+  }
+} catch (syncErr) {
+  // ignore if tables not ready
+}
+
 export default db;

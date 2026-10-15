@@ -30,12 +30,34 @@ export const getBallot = (req, res) => {
     }
 
     // Fetch candidate list for this election
-    const candidates = db.prepare(`
+    let candidates = db.prepare(`
       SELECT id, name, party, bio, photo_url 
       FROM candidates 
       WHERE election_id = ? 
       ORDER BY name ASC
     `).all(electionId);
+
+    // If no candidates are registered for this election, automatically populate with all recognized political parties
+    if (candidates.length === 0) {
+      const parties = db.prepare('SELECT id, name, code, description, logo_url FROM parties ORDER BY name ASC').all();
+      if (parties.length > 0) {
+        const insertStmt = db.prepare(`
+          INSERT INTO candidates (name, party, bio, photo_url, election_id)
+          VALUES (?, ?, ?, ?, ?)
+        `);
+        for (const p of parties) {
+          const partyLabel = p.code ? `${p.name} (${p.code})` : p.name;
+          insertStmt.run(p.name, partyLabel, p.description || `Official ballot entry for ${p.name}`, p.logo_url || null, electionId);
+        }
+
+        candidates = db.prepare(`
+          SELECT id, name, party, bio, photo_url 
+          FROM candidates 
+          WHERE election_id = ? 
+          ORDER BY name ASC
+        `).all(electionId);
+      }
+    }
 
     return successResponse(res, {
       election,
