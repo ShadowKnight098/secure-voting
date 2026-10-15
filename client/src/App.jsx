@@ -8,6 +8,8 @@ import CandidatesPage from './pages/admin/CandidatesPage';
 import CandidateFormPage from './pages/admin/CandidateFormPage';
 import VotersPage from './pages/admin/VotersPage';
 import PartiesPage from './pages/admin/PartiesPage';
+import AdminResultsPage from './pages/admin/AdminResultsPage';
+import VerifyReceiptPage from './pages/VerifyReceiptPage';
 import VoterLoginPage from './pages/voter/VoterLoginPage';
 import VoterRegisterPage from './pages/voter/VoterRegisterPage';
 import VoterDashboardPage from './pages/voter/VoterDashboardPage';
@@ -79,8 +81,9 @@ function App() {
         </VoterProtectedRoute>
       } />
 
-      {/* Shared Results Page (Accessible to verified voters & admins) */}
+      {/* Shared Results & Verification Pages */}
       <Route path="/elections/:id/results" element={<ElectionResultsPage />} />
+      <Route path="/verify-receipt" element={<VerifyReceiptPage />} />
 
       {/* Admin Protected Routes */}
       <Route path="/admin" element={
@@ -99,6 +102,7 @@ function App() {
         <Route path="elections/:electionId/candidates/new" element={<CandidateFormPage />} />
         <Route path="elections/:electionId/candidates/:candidateId/edit" element={<CandidateFormPage />} />
 
+        <Route path="results" element={<AdminResultsPage />} />
         <Route path="voters" element={<VotersPage />} />
         <Route path="parties" element={<PartiesPage />} />
       </Route>

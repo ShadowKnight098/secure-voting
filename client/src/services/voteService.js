@@ -16,6 +16,14 @@ export const voteService = {
   getResults: async (electionId) => {
     const res = await api.get(`/votes/results/${electionId}`);
     return res.data.data;
+  },
+  getAuditLedger: async (electionId) => {
+    const res = await api.get(`/votes/audit/${electionId}`);
+    return res.data.data;
+  },
+  verifyReceipt: async (receiptCode) => {
+    const res = await api.get(`/votes/verify-receipt/${encodeURIComponent(receiptCode)}`);
+    return res.data.data;
   }
 };
 

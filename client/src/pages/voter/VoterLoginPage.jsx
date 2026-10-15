@@ -104,9 +104,12 @@ export const VoterLoginPage = () => {
           <span className="px-2 py-0.5 rounded-full bg-mint border border-ink text-[10px] font-bold">Verified</span>
         </div>
 
-        <div className="mt-4 text-center">
-          <Link to="/login" className="text-xs font-bold text-violet hover:underline flex items-center justify-center gap-1">
-            <Shield size={12} /> Administrator portal →
+        <div className="mt-4 flex items-center justify-between text-xs font-bold text-violet px-2">
+          <Link to="/verify-receipt" className="hover:underline flex items-center gap-1 text-ink">
+            🔍 Verify Vote Receipt
+          </Link>
+          <Link to="/login" className="hover:underline flex items-center gap-1">
+            <Shield size={12} /> Admin portal →
           </Link>
         </div>
       </div>
