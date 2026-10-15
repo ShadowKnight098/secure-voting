@@ -198,11 +198,11 @@ export const VoterBallotPage = () => {
                         {cand.photo_url ? (
                           <img 
                             src={getImageUrl(cand.photo_url)} 
-                            alt={cand.name} 
+                            alt={cand.name || 'Candidate'} 
                             className="w-full h-full object-cover" 
                           />
                         ) : (
-                          <span>{cand.name.charAt(0).toUpperCase()}</span>
+                          <span>{(cand?.name || 'P').charAt(0).toUpperCase()}</span>
                         )}
                       </div>
 

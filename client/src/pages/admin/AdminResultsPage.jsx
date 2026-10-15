@@ -85,11 +85,12 @@ export const AdminResultsPage = () => {
   };
 
   const filteredAuditTrail = (auditData?.auditTrail || []).filter(item => {
-    const q = auditSearch.toLowerCase();
-    return item.receiptCode.toLowerCase().includes(q) ||
-      item.candidateName.toLowerCase().includes(q) ||
-      item.encryptedVoteHash.toLowerCase().includes(q) ||
-      item.maskedVoterId.toLowerCase().includes(q);
+    if (!item) return false;
+    const q = (auditSearch || '').toLowerCase();
+    return (item.receiptCode || '').toLowerCase().includes(q) ||
+      (item.candidateName || '').toLowerCase().includes(q) ||
+      (item.encryptedVoteHash || '').toLowerCase().includes(q) ||
+      (item.maskedVoterId || '').toLowerCase().includes(q);
   });
 
   return (

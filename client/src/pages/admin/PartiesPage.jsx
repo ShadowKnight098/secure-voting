@@ -16,6 +16,7 @@ export const PartiesPage = () => {
   const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedElectionFilter, setSelectedElectionFilter] = useState('');
 
   // Modal create/edit state
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -135,14 +136,17 @@ export const PartiesPage = () => {
   const partyList = Array.isArray(parties) ? parties : [];
   const filteredParties = partyList.filter(p => {
     if (!p) return false;
-    const pName = p.name || '';
-    const pCode = p.code || '';
-    const pDesc = p.description || '';
-    const q = (searchTerm || '').toLowerCase();
+    const pName = (p.name || '').toLowerCase();
+    const pCode = (p.code || '').toLowerCase();
+    const pDesc = (p.description || '').toLowerCase();
+    const q = (searchTerm || '').trim().toLowerCase();
 
-    return pName.toLowerCase().includes(q) ||
-      pCode.toLowerCase().includes(q) ||
-      pDesc.toLowerCase().includes(q);
+    const matchesSearch = !q || pName.includes(q) || pCode.includes(q) || pDesc.includes(q);
+    const matchesElection = !selectedElectionFilter || 
+      !p.election_id || 
+      String(p.election_id) === String(selectedElectionFilter);
+
+    return matchesSearch && matchesElection;
   });
 
   return (
@@ -188,20 +192,36 @@ export const PartiesPage = () => {
       </div>
 
       <Card className="p-4 sm:p-6 shadow-neo">
-        {/* Search */}
+        {/* Search & Filter Bar */}
         <div className="flex flex-col md:flex-row gap-4 mb-6 justify-between items-stretch md:items-center">
-          <div className="w-full sm:w-80">
-            <Input
-              icon={Search}
-              placeholder="Search recognized parties..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-            />
+          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center flex-1 max-w-xl">
+            <div className="w-full sm:w-72">
+              <Input
+                icon={Search}
+                placeholder="Search recognized parties..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
+            </div>
+            {elections.length > 0 && (
+              <select
+                value={selectedElectionFilter}
+                onChange={(e) => setSelectedElectionFilter(e.target.value)}
+                className="px-3 py-2 bg-surface border-2 border-ink rounded-[10px] text-xs font-bold text-ink focus:outline-none focus:ring-2 focus:ring-violet shadow-neo-sm cursor-pointer"
+              >
+                <option value="">All Election Scopes</option>
+                {elections.map(el => (
+                  <option key={el.id} value={el.id}>
+                    Filter: {el.title}
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           <div className="text-xs font-bold text-ink/70 flex items-center gap-1.5 px-3 py-2 bg-lavender/60 border border-ink rounded-[10px] self-start md:self-auto">
             <Building2 size={15} className="text-violet" />
-            <span>Total Recognized Parties: <strong>{filteredParties.length}</strong></span>
+            <span>Recognized Parties: <strong>{filteredParties.length}</strong></span>
           </div>
         </div>
 
@@ -346,7 +366,7 @@ export const PartiesPage = () => {
               <option value="">All Elections / Universal Ballot (Recommended)</option>
               {elections.map((el) => (
                 <option key={el.id} value={el.id}>
-                  Specific: {el.title} ({el.status.toUpperCase()})
+                  Specific: {el.title} ({(el.status || 'upcoming').toUpperCase()})
                 </option>
               ))}
             </select>
