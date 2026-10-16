@@ -100,43 +100,115 @@ try {
   // column check/add already handled
 }
 
-// Ensure default super_admin account exists on initial deployment
+// --- Automatic Database Seeding & Persistence Bootstrap ---
 try {
+  // 1. Ensure Admins Exist
   const adminCheck = db.prepare('SELECT COUNT(*) as count FROM admins').get();
   if (adminCheck && adminCheck.count === 0) {
     const defaultHash = bcrypt.hashSync('admin123', 10);
-    db.prepare(`
+    const adminStmt = db.prepare(`
       INSERT INTO admins (username, email, password_hash, role) 
       VALUES (?, ?, ?, ?)
-    `).run('admin', 'admin@votingsystem.com', defaultHash, 'super_admin');
-    console.log('[DB] Initial super-admin created: admin / admin123');
+    `);
+    adminStmt.run('admin', 'admin@votingsystem.com', defaultHash, 'super_admin');
+    adminStmt.run('vaseem', 'vaseem@votingsystem.com', defaultHash, 'super_admin');
+    console.log('[DB] Initial super-admins created: admin / admin123, vaseem / admin123');
   }
-} catch (seedErr) {
-  // ignore if table doesn't exist yet
-}
 
-// Ensure any elections without candidates automatically have registered parties populated
-try {
+  // 2. Ensure Recognized Political Parties Exist
+  const partyCheck = db.prepare('SELECT COUNT(*) as count FROM parties').get();
+  if (partyCheck && partyCheck.count === 0) {
+    const insertParty = db.prepare(`
+      INSERT INTO parties (name, code, description) 
+      VALUES (?, ?, ?)
+    `);
+    insertParty.run('Liberty Party', 'LP', 'Advocating for personal liberties, transparent governance, and community growth.');
+    insertParty.run('Progressive Party', 'PP', 'Championing modern reforms, technological innovation, science, and education.');
+    insertParty.run('Community First', 'CF', 'Empowering local neighborhoods, grassroots initiatives, and civic welfare.');
+    insertParty.run('Green Alliance', 'GA', 'Dedicated to environmental sustainability, renewable energy, and ecological safety.');
+    insertParty.run('Independent', 'IND', 'Non-partisan independent candidates serving all constituents.');
+    console.log('[DB] Seeded 5 recognized political parties');
+  }
+
+  // 3. Ensure Active & Upcoming Elections Exist
+  const electionCheck = db.prepare('SELECT COUNT(*) as count FROM elections').get();
+  let defaultActiveElectionId = null;
+  if (electionCheck && electionCheck.count === 0) {
+    const adminUser = db.prepare('SELECT id FROM admins ORDER BY id ASC LIMIT 1').get();
+    const adminId = adminUser ? adminUser.id : 1;
+
+    const today = new Date();
+    const future30 = new Date();
+    future30.setDate(today.getDate() + 30);
+    const future60 = new Date();
+    future60.setDate(today.getDate() + 60);
+
+    const insertElection = db.prepare(`
+      INSERT INTO elections (title, description, start_date, end_date, status, created_by)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `);
+
+    const el1 = insertElection.run(
+      'National Presidential Election 2025',
+      'Official national election for the executive presidential council. Open to all verified registered voters.',
+      today.toISOString().split('T')[0],
+      future30.toISOString().split('T')[0],
+      'active',
+      adminId
+    );
+    defaultActiveElectionId = el1.lastInsertRowid;
+
+    insertElection.run(
+      'Civic & Student Council Election',
+      'Local municipality and student body representative council election.',
+      today.toISOString().split('T')[0],
+      future60.toISOString().split('T')[0],
+      'active',
+      adminId
+    );
+    console.log('[DB] Seeded active elections with open voting windows');
+  }
+
+  // 4. Ensure All Registered Parties are Candidates on All Election Ballots
   const parties = db.prepare('SELECT * FROM parties').all();
-  if (parties.length > 0) {
-    const elections = db.prepare('SELECT * FROM elections').all();
+  const elections = db.prepare('SELECT * FROM elections').all();
+  if (parties.length > 0 && elections.length > 0) {
     for (const el of elections) {
-      const count = db.prepare('SELECT COUNT(*) as c FROM candidates WHERE election_id = ?').get(el.id).c;
-      if (count === 0) {
-        const insertStmt = db.prepare(`
+      const candidateCount = db.prepare('SELECT COUNT(*) as c FROM candidates WHERE election_id = ?').get(el.id).c;
+      if (candidateCount === 0) {
+        const insertCand = db.prepare(`
           INSERT INTO candidates (name, party, bio, photo_url, election_id)
           VALUES (?, ?, ?, ?, ?)
         `);
         for (const p of parties) {
           const partyLabel = p.code ? `${p.name} (${p.code})` : p.name;
-          insertStmt.run(p.name, partyLabel, p.description || '', p.logo_url || null, el.id);
+          insertCand.run(p.name, partyLabel, p.description || '', p.logo_url || null, el.id);
         }
-        console.log(`[DB] Auto-populated ${parties.length} parties as ballot candidates for election "${el.title}" (ID: ${el.id})`);
+        console.log(`[DB] Auto-populated ${parties.length} parties onto ballot for election "${el.title}" (ID: ${el.id})`);
       }
     }
   }
-} catch (syncErr) {
-  // ignore if tables not ready
+
+  // 5. Ensure Default Demo Voters Exist for Testing
+  const voterCheck = db.prepare('SELECT COUNT(*) as count FROM voters').get();
+  if (voterCheck && voterCheck.count === 0) {
+    const voterPasswordHash = bcrypt.hashSync('voter123', 10);
+    const firstActiveElection = db.prepare("SELECT id FROM elections WHERE status = 'active' LIMIT 1").get();
+    const assignedElectionId = firstActiveElection ? firstActiveElection.id : defaultActiveElectionId;
+
+    const insertVoter = db.prepare(`
+      INSERT INTO voters (full_name, email, phone, voter_id_number, password_hash, has_voted, is_verified, election_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    insertVoter.run('Alice Cooper', 'alice.cooper@example.com', '+1-555-0101', 'VOTER-1001', voterPasswordHash, 0, 1, assignedElectionId);
+    insertVoter.run('Mark Davis', 'mark.davis@example.com', '+1-555-0102', 'VOTER-1002', voterPasswordHash, 0, 1, assignedElectionId);
+    insertVoter.run('Sarah Connor', 'sarah.connor@example.com', '+1-555-0103', 'VOTER-1003', voterPasswordHash, 0, 1, assignedElectionId);
+    insertVoter.run('Michael Scott', 'michael.scott@example.com', '+1-555-0104', 'VOTER-1004', voterPasswordHash, 0, 1, assignedElectionId);
+    console.log('[DB] Seeded 4 default verified voters (VOTER-1001 through VOTER-1004 / voter123)');
+  }
+} catch (bootstrapErr) {
+  console.error('[DB] Error during startup persistence bootstrap:', bootstrapErr);
 }
 
 export default db;
