@@ -55,7 +55,13 @@ export const ElectionResultsPage = () => {
   const { election, totalVotes, totalEligibleVoters, turnoutPercentage, candidates, winner } = resultsData || {};
 
   const handleBack = () => {
-    // If admin is logged in, return to admin elections, else voter dashboard
+    // If voter session is active or was viewing as a voter, return to voter dashboard
+    if (localStorage.getItem('voter_token')) {
+      navigate('/voter/dashboard');
+      return;
+    }
+
+    // Only administrators without a voter session navigate to admin elections
     if (localStorage.getItem('token')) {
       navigate('/admin/elections');
     } else {

@@ -99,7 +99,10 @@ export const VoterBallotPage = () => {
 
       toast.success('Vote cast successfully! Digital receipt generated.');
       setIsConfirmModalOpen(false);
-      navigate(`/voter/receipt/${electionId}`);
+      navigate(`/voter/receipt/${electionId}`, {
+        state: { receipt: response?.data?.receipt },
+        replace: true
+      });
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to cast ballot. Please try again.');
     } finally {

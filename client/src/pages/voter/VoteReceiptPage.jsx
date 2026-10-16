@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { 
   CheckCircle2, 
   ShieldCheck, 
@@ -21,12 +21,18 @@ import Button from '../../components/ui/Button';
 export const VoteReceiptPage = () => {
   const { electionId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
 
-  const [loading, setLoading] = useState(true);
-  const [receipt, setReceipt] = useState(null);
+  const initialReceipt = location.state?.receipt || null;
+  const [loading, setLoading] = useState(!initialReceipt);
+  const [receipt, setReceipt] = useState(initialReceipt);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
+    if (receipt) {
+      setLoading(false);
+      return;
+    }
     const fetchReceipt = async () => {
       try {
         const data = await voteService.getReceipt(electionId);
@@ -39,7 +45,7 @@ export const VoteReceiptPage = () => {
       }
     };
     fetchReceipt();
-  }, [electionId, navigate]);
+  }, [electionId, navigate, receipt]);
 
   const handleCopyHash = () => {
     if (receipt?.encryptedVoteHash) {

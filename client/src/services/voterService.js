@@ -1,5 +1,10 @@
 import api from './api';
 
+const getVoterHeaders = () => {
+  const token = localStorage.getItem('voter_token');
+  return token ? { Authorization: `Bearer ${token}` } : {};
+};
+
 export const voterService = {
   getAvailableElections: async () => {
     const res = await api.get('/voter/elections');
@@ -14,20 +19,17 @@ export const voterService = {
     return res.data.data;
   },
   getProfile: async () => {
-    const token = localStorage.getItem('voter_token');
-    const res = await api.get('/voter/profile', {
-      headers: {
-        Authorization: `Bearer ${token}`
-      }
-    });
+    const res = await api.get('/voter/profile', { headers: getVoterHeaders() });
     return res.data.data;
   },
   getFaceDescriptor: async () => {
-    const res = await api.get('/voter/face-descriptor');
+    const res = await api.get('/voter/face-descriptor', { headers: getVoterHeaders() });
     return res.data.data;
   },
   verifyFace: async (payload) => {
-    const res = await api.post('/voter/verify-face', payload);
+    const res = await api.post('/voter/verify-face', payload, { headers: getVoterHeaders() });
     return res.data;
   }
 };
+
+export default voterService;
