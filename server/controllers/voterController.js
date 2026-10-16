@@ -37,10 +37,47 @@ export const register = async (req, res) => {
       return errorResponse(res, 'Biometric scan rejected: no valid human face was detected.', 400);
     }
 
-    // Check if email already registered
-    const existingEmail = db.prepare('SELECT id FROM voters WHERE email = ?').get(email);
+    const cleanEmail = email.trim().toLowerCase();
+
+    // 1. Strict Unique Email Validation
+    const existingEmail = db.prepare('SELECT id FROM voters WHERE LOWER(email) = ?').get(cleanEmail);
     if (existingEmail) {
-      return errorResponse(res, 'A voter with this email is already registered', 409);
+      return errorResponse(res, 'This email address is already registered. Please sign in or use a different email.', 409);
+    }
+
+    // 2. Strict Biometric Deduplication Check (Prevent duplicate registrations by the same person)
+    const registeredFaces = db.prepare(`
+      SELECT fd.voter_id, fd.face_descriptor, v.full_name, v.voter_id_number 
+      FROM face_data fd
+      JOIN voters v ON fd.voter_id = v.id
+      WHERE fd.face_descriptor IS NOT NULL
+    `).all();
+
+    for (const record of registeredFaces) {
+      try {
+        const storedDescriptor = JSON.parse(record.face_descriptor);
+        if (Array.isArray(storedDescriptor) && storedDescriptor.length === 128) {
+          let sumSquares = 0;
+          for (let i = 0; i < 128; i++) {
+            const diff = storedDescriptor[i] - parsedDescriptor[i];
+            sumSquares += diff * diff;
+          }
+          const distance = Math.sqrt(sumSquares);
+
+          // Threshold 0.48: Confirms matching facial biometrics of the same individual
+          if (distance <= 0.48) {
+            console.warn(`[Biometric Duplicate] Face matches existing voter ${record.voter_id_number} (${record.full_name}) with distance ${distance.toFixed(3)}`);
+            return errorResponse(
+              res, 
+              `Biometric duplicate detected: A voter with this facial biometric identity is already registered in the system (Voter ID: ${record.voter_id_number}). Duplicate registrations by the same individual are strictly prohibited.`, 
+              409, 
+              { duplicateDetected: true, matchedVoterId: record.voter_id_number, distance: Number(distance.toFixed(4)) }
+            );
+          }
+        }
+      } catch (parseErr) {
+        // Skip any unparseable legacy records
+      }
     }
 
     // Automatically generate a unique, cryptographically random Voter ID Number
