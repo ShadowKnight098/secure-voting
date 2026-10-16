@@ -232,22 +232,31 @@ export const create = async (req, res) => {
       }
     }
 
-    const stmt = db.prepare(`
-      INSERT INTO voters (full_name, email, phone, voter_id_number, password_hash, has_voted, is_verified, election_id)
-      VALUES (?, ?, ?, ?, ?, 0, ?, ?)
-    `);
+    try {
+      const localElect = election_id 
+        ? db.prepare('SELECT id FROM elections WHERE id = ?').get(parseInt(election_id, 10)) 
+        : null;
+      const safeLocalElectionId = localElect ? parseInt(election_id, 10) : null;
 
-    const result = stmt.run(
-      full_name,
-      cleanEmail,
-      phone || null,
-      cleanVoterId,
-      passwordHash,
-      is_verified ? 1 : 0,
-      parseInt(election_id, 10)
-    );
+      const stmt = db.prepare(`
+        INSERT INTO voters (full_name, email, phone, voter_id_number, password_hash, has_voted, is_verified, election_id)
+        VALUES (?, ?, ?, ?, ?, 0, ?, ?)
+      `);
 
-    if (!createdId) createdId = result.lastInsertRowid;
+      const result = stmt.run(
+        full_name,
+        cleanEmail,
+        phone || null,
+        cleanVoterId,
+        passwordHash,
+        is_verified ? 1 : 0,
+        safeLocalElectionId
+      );
+
+      if (!createdId) createdId = result.lastInsertRowid;
+    } catch (localErr) {
+      console.warn('[SQLite] Admin local voter mirror warning (non-fatal):', localErr.message);
+    }
 
     return successResponse(res, { id: createdId }, 'Voter created and synchronized successfully', 201);
   } catch (error) {

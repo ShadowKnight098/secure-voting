@@ -43,14 +43,47 @@ const getCalculatedStatus = (startDate, endDate, requestedStatus) => {
   return 'upcoming';
 };
 
-export const getAll = (req, res) => {
+export const getAll = async (req, res) => {
   try {
-    // Automatically sync statuses before listing
     syncElectionStatuses();
 
     const { page, limit, offset } = getPagination(req.query);
     const searchFilter = getSearchFilter(req.query, ['title', 'description']);
     const status = req.query.status;
+
+    // 1. Supabase Cloud lookup
+    if (isSupabaseConfigured && supabase) {
+      try {
+        let query = supabase.from('elections').select('*, candidates(count)', { count: 'exact' });
+        if (status) {
+          query = query.eq('status', status);
+        }
+        if (req.query.search?.trim()) {
+          const s = req.query.search.trim();
+          query = query.or(`title.ilike.%${s}%,description.ilike.%${s}%`);
+        }
+        query = query.order('start_date', { ascending: false }).range(offset, offset + limit - 1);
+        const { data: supaElects, count: totalCount, error: supaErr } = await query;
+
+        if (!supaErr && supaElects && supaElects.length > 0) {
+          const mapped = supaElects.map(e => ({
+            ...e,
+            candidate_count: e.candidates?.[0]?.count || 0
+          }));
+          return successResponse(res, {
+            elections: mapped,
+            pagination: {
+              page,
+              limit,
+              total: totalCount || mapped.length,
+              totalPages: Math.ceil((totalCount || mapped.length) / limit)
+            }
+          }, 'Elections retrieved successfully from cloud');
+        }
+      } catch (err) {
+        console.warn('[Supabase] elections getAll warning:', err.message);
+      }
+    }
 
     let whereClause = 'WHERE 1=1';
     let queryParams = [];
@@ -87,10 +120,28 @@ export const getAll = (req, res) => {
   }
 };
 
-export const getById = (req, res) => {
+export const getById = async (req, res) => {
   try {
     syncElectionStatuses();
     const id = req.params.id;
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: supaElect } = await supabase
+          .from('elections')
+          .select('*, candidates(count)')
+          .eq('id', id)
+          .maybeSingle();
+
+        if (supaElect) {
+          return successResponse(res, {
+            ...supaElect,
+            candidate_count: supaElect.candidates?.[0]?.count || 0
+          }, 'Election retrieved successfully from cloud');
+        }
+      } catch (_) {}
+    }
+
     const sql = `
       SELECT e.*, (SELECT COUNT(*) FROM candidates c WHERE c.election_id = e.id) as candidate_count 
       FROM elections e 

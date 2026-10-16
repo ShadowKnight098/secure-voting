@@ -4,7 +4,7 @@ import db from '../config/db.js';
 import { supabase, isSupabaseConfigured } from '../config/supabase.js';
 import { successResponse, errorResponse, getPagination, getSearchFilter } from '../utils/helpers.js';
 
-export const getAll = (req, res) => {
+export const getAll = async (req, res) => {
   try {
     const election_id = req.query.election_id;
     if (!election_id) {
@@ -12,6 +12,48 @@ export const getAll = (req, res) => {
     }
 
     const { page, limit, offset } = getPagination(req.query);
+    const search = req.query.search?.trim();
+
+    // 1. Supabase Cloud lookup
+    if (isSupabaseConfigured && supabase) {
+      try {
+        let query = supabase
+          .from('candidates')
+          .select('id, name, party, bio, election_id, elections(title)', { count: 'exact' })
+          .eq('election_id', election_id);
+
+        if (search) {
+          query = query.or(`name.ilike.%${search}%,party.ilike.%${search}%`);
+        }
+
+        query = query.order('name', { ascending: true }).range(offset, offset + limit - 1);
+        const { data: supaCands, count: totalCount, error: supaErr } = await query;
+
+        if (!supaErr && supaCands && supaCands.length > 0) {
+          const mapped = supaCands.map(c => ({
+            id: c.id,
+            name: c.name,
+            party: c.party,
+            bio: c.bio,
+            photo_url: null,
+            election_id: c.election_id,
+            election_title: c.elections?.title || ''
+          }));
+          return successResponse(res, {
+            candidates: mapped,
+            pagination: {
+              page,
+              limit,
+              total: totalCount || mapped.length,
+              totalPages: Math.ceil((totalCount || mapped.length) / limit)
+            }
+          }, 'Candidates retrieved successfully from cloud');
+        }
+      } catch (err) {
+        console.warn('[Supabase] candidates getAll warning:', err.message);
+      }
+    }
+
     const searchFilter = getSearchFilter(req.query, ['c.name', 'c.party']);
     
     let whereClause = 'WHERE c.election_id = ?';
@@ -45,9 +87,32 @@ export const getAll = (req, res) => {
   }
 };
 
-export const getById = (req, res) => {
+export const getById = async (req, res) => {
   try {
     const id = req.params.id;
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: c } = await supabase
+          .from('candidates')
+          .select('id, name, party, bio, election_id, elections(title)')
+          .eq('id', id)
+          .maybeSingle();
+
+        if (c) {
+          return successResponse(res, {
+            id: c.id,
+            name: c.name,
+            party: c.party,
+            bio: c.bio,
+            photo_url: null,
+            election_id: c.election_id,
+            election_title: c.elections?.title || ''
+          }, 'Candidate retrieved successfully from cloud');
+        }
+      } catch (_) {}
+    }
+
     const sql = `
       SELECT c.*, e.title as election_title 
       FROM candidates c 

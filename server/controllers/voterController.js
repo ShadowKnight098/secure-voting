@@ -206,26 +206,35 @@ export const register = async (req, res) => {
       }
     }
 
-    // Mirror to local SQLite database
-    const stmt = db.prepare(`
-      INSERT INTO voters (full_name, email, phone, voter_id_number, password_hash, has_voted, is_verified, election_id)
-      VALUES (?, ?, ?, ?, ?, 0, 1, ?)
-    `);
-    const result = stmt.run(full_name, cleanEmail, phone || null, voter_id_number, passwordHash, assignedElectionId);
-    if (!finalVoterId) finalVoterId = result.lastInsertRowid;
+    // Mirror to local SQLite database (resilient cache)
+    try {
+      const localElect = assignedElectionId 
+        ? db.prepare('SELECT id FROM elections WHERE id = ?').get(assignedElectionId) 
+        : null;
+      const safeLocalElectionId = localElect ? assignedElectionId : null;
 
-    if (face_descriptor || savedPhotoUrl) {
-      try {
-        const descriptorStr = face_descriptor 
-          ? (typeof face_descriptor === 'string' ? face_descriptor : JSON.stringify(face_descriptor))
-          : null;
-        db.prepare(`
-          INSERT INTO face_data (voter_id, face_descriptor, photo_url)
-          VALUES (?, ?, ?)
-        `).run(result.lastInsertRowid, descriptorStr, savedPhotoUrl);
-      } catch (faceErr) {
-        console.error('Error inserting local face_data:', faceErr);
+      const stmt = db.prepare(`
+        INSERT INTO voters (full_name, email, phone, voter_id_number, password_hash, has_voted, is_verified, election_id)
+        VALUES (?, ?, ?, ?, ?, 0, 1, ?)
+      `);
+      const result = stmt.run(full_name, cleanEmail, phone || null, voter_id_number, passwordHash, safeLocalElectionId);
+      if (!finalVoterId) finalVoterId = result.lastInsertRowid;
+
+      if (face_descriptor || savedPhotoUrl) {
+        try {
+          const descriptorStr = face_descriptor 
+            ? (typeof face_descriptor === 'string' ? face_descriptor : JSON.stringify(face_descriptor))
+            : null;
+          db.prepare(`
+            INSERT INTO face_data (voter_id, face_descriptor, photo_url)
+            VALUES (?, ?, ?)
+          `).run(result.lastInsertRowid, descriptorStr, savedPhotoUrl);
+        } catch (faceErr) {
+          console.error('Error inserting local face_data:', faceErr);
+        }
       }
+    } catch (localMirrorErr) {
+      console.warn('[SQLite] Local mirror notice (non-fatal):', localMirrorErr.message);
     }
 
     const secret = process.env.JWT_SECRET || 'voting-system-secret-key-2024';
