@@ -1,4 +1,5 @@
 import db from '../config/db.js';
+import { supabase, isSupabaseConfigured } from '../config/supabase.js';
 import { successResponse, errorResponse, getPagination, getSearchFilter } from '../utils/helpers.js';
 
 const syncElectionStatuses = () => {
@@ -107,7 +108,7 @@ export const getById = (req, res) => {
   }
 };
 
-export const create = (req, res) => {
+export const create = async (req, res) => {
   try {
     const { title, description, start_date, end_date, status, startDate, endDate } = req.body;
     const finalStart = start_date || startDate;
@@ -136,6 +137,37 @@ export const create = (req, res) => {
 
     const newElectionId = result.lastInsertRowid;
 
+    // Sync to Supabase Cloud
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: supaElect, error: supaErr } = await supabase.from('elections').insert({
+          title,
+          description: description || null,
+          start_date: new Date(finalStart).toISOString(),
+          end_date: new Date(finalEnd).toISOString(),
+          status: calculatedStatus,
+          created_by: 1
+        }).select().single();
+
+        if (supaElect) {
+          const { data: supaParties } = await supabase.from('parties').select('*');
+          if (supaParties) {
+            for (const p of supaParties) {
+              const partyLabel = p.code ? `${p.name} (${p.code})` : p.name;
+              await supabase.from('candidates').insert({
+                name: p.name,
+                party: partyLabel,
+                bio: p.description || `Official ballot entry for ${p.name}`,
+                election_id: supaElect.id
+              });
+            }
+          }
+        }
+      } catch (sbErr) {
+        console.warn('[Supabase] Election cloud insert warning:', sbErr.message);
+      }
+    }
+
     // Automatically attach all recognized political parties to the new election
     try {
       const allParties = db.prepare('SELECT * FROM parties').all();
@@ -159,7 +191,7 @@ export const create = (req, res) => {
   }
 };
 
-export const update = (req, res) => {
+export const update = async (req, res) => {
   try {
     const id = req.params.id;
     const { title, description, start_date, end_date, status, startDate, endDate } = req.body;
@@ -190,15 +222,34 @@ export const update = (req, res) => {
 
     db.prepare(sql).run(title, description, finalStart, finalEnd, calculatedStatus, id);
 
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('elections').update({
+          title: title || existing.title,
+          description: description !== undefined ? description : existing.description,
+          start_date: finalStart ? new Date(finalStart).toISOString() : existing.start_date,
+          end_date: finalEnd ? new Date(finalEnd).toISOString() : existing.end_date,
+          status: calculatedStatus
+        }).eq('id', id);
+      } catch (_) {}
+    }
+
     return successResponse(res, null, 'Election updated successfully');
   } catch (error) {
     return errorResponse(res, 'Failed to update election', 500, error);
   }
 };
 
-export const remove = (req, res) => {
+export const remove = async (req, res) => {
   try {
     const id = req.params.id;
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('elections').delete().eq('id', id);
+      } catch (_) {}
+    }
+
     const result = db.prepare('DELETE FROM elections WHERE id = ?').run(id);
 
     if (result.changes === 0) {

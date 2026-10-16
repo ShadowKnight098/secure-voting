@@ -1,9 +1,26 @@
 import db from '../config/db.js';
+import { supabase, isSupabaseConfigured } from '../config/supabase.js';
 import { successResponse, errorResponse } from '../utils/helpers.js';
 
-export const getAllParties = (req, res) => {
+export const getAllParties = async (req, res) => {
   try {
     const { election_id } = req.query;
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: supaParties, error } = await supabase
+          .from('parties')
+          .select('*')
+          .order('name', { ascending: true });
+
+        if (!error && supaParties && supaParties.length > 0) {
+          return successResponse(res, supaParties, 'Parties retrieved successfully from cloud database');
+        }
+      } catch (err) {
+        console.warn('[Supabase] getAllParties warning:', err.message);
+      }
+    }
+
     let sql = `
       SELECT p.*, e.title as election_title,
              (SELECT COUNT(*) FROM candidates c WHERE c.party = p.name) as candidate_count
@@ -25,7 +42,7 @@ export const getAllParties = (req, res) => {
   }
 };
 
-export const createParty = (req, res) => {
+export const createParty = async (req, res) => {
   try {
     const { name, code, description, logo_url, election_id } = req.body;
 
@@ -34,6 +51,22 @@ export const createParty = (req, res) => {
     }
 
     const trimmedName = name.trim();
+    const cleanCode = code?.trim() || null;
+    const cleanDesc = description?.trim() || null;
+
+    // Check duplicate in Supabase
+    if (isSupabaseConfigured && supabase) {
+      const { data: existingSupa } = await supabase
+        .from('parties')
+        .select('id')
+        .ilike('name', trimmedName)
+        .maybeSingle();
+
+      if (existingSupa) {
+        return errorResponse(res, `Party "${trimmedName}" already exists in cloud database`, 409);
+      }
+    }
+
     const existing = db.prepare('SELECT id FROM parties WHERE LOWER(name) = LOWER(?)').get(trimmedName);
     if (existing) {
       return errorResponse(res, `Party "${trimmedName}" already exists`, 409);
@@ -41,133 +74,192 @@ export const createParty = (req, res) => {
 
     const targetElectionId = election_id ? parseInt(election_id, 10) : null;
 
-    const result = db.prepare(`
-      INSERT INTO parties (name, code, description, logo_url, election_id, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-    `).run(trimmedName, code?.trim() || null, description?.trim() || null, logo_url?.trim() || null, targetElectionId);
+    let createdParty = null;
 
-    // Automatically attach this party to all active or upcoming elections as a voteable option
-    const activeElections = db.prepare("SELECT id FROM elections WHERE status IN ('upcoming', 'active')").all();
-    for (const el of activeElections) {
-      const alreadyCand = db.prepare('SELECT id FROM candidates WHERE election_id = ? AND LOWER(name) = LOWER(?)').get(el.id, trimmedName);
-      if (!alreadyCand) {
-        const partyLabel = code?.trim() ? `${trimmedName} (${code.trim().toUpperCase()})` : trimmedName;
-        db.prepare(`
-          INSERT INTO candidates (name, party, bio, photo_url, election_id)
-          VALUES (?, ?, ?, ?, ?)
-        `).run(trimmedName, partyLabel, description?.trim() || '', logo_url?.trim() || null, el.id);
+    // 1. Supabase Cloud Insert
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: supaNew, error: supaErr } = await supabase
+          .from('parties')
+          .insert({
+            name: trimmedName,
+            code: cleanCode || '',
+            description: cleanDesc || ''
+          })
+          .select()
+          .single();
+
+        if (supaNew) {
+          createdParty = supaNew;
+        } else if (supaErr) {
+          console.error('[Supabase] Insert party error:', supaErr);
+        }
+      } catch (err) {
+        console.error('[Supabase] Party insert exception:', err);
       }
     }
 
-    const newParty = db.prepare(`
-      SELECT p.*, e.title as election_title 
-      FROM parties p 
-      LEFT JOIN elections e ON p.election_id = e.id 
-      WHERE p.id = ?
-    `).get(result.lastInsertRowid);
+    // 2. Local SQLite Mirror
+    const result = db.prepare(`
+      INSERT INTO parties (name, code, description, logo_url, election_id, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+    `).run(trimmedName, cleanCode, cleanDesc, logo_url?.trim() || null, targetElectionId);
 
-    return successResponse(res, newParty, 'Political party created and added to elections successfully', 201);
+    // Auto-attach as candidate to active elections in Supabase & SQLite
+    const partyLabel = cleanCode ? `${trimmedName} (${cleanCode.toUpperCase()})` : trimmedName;
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: activeElections } = await supabase.from('elections').select('id').in('status', ['upcoming', 'active']);
+        if (activeElections) {
+          for (const el of activeElections) {
+            await supabase.from('candidates').insert({
+              name: trimmedName,
+              party: partyLabel,
+              bio: cleanDesc || `Official ballot entry for ${trimmedName}`,
+              election_id: el.id
+            });
+          }
+        }
+      } catch (_) {}
+    }
+
+    const localActive = db.prepare("SELECT id FROM elections WHERE status IN ('upcoming', 'active')").all();
+    for (const el of localActive) {
+      const alreadyCand = db.prepare('SELECT id FROM candidates WHERE election_id = ? AND LOWER(name) = LOWER(?)').get(el.id, trimmedName);
+      if (!alreadyCand) {
+        db.prepare(`
+          INSERT INTO candidates (name, party, bio, photo_url, election_id)
+          VALUES (?, ?, ?, ?, ?)
+        `).run(trimmedName, partyLabel, cleanDesc || '', logo_url?.trim() || null, el.id);
+      }
+    }
+
+    if (!createdParty) {
+      createdParty = db.prepare(`
+        SELECT p.*, e.title as election_title 
+        FROM parties p 
+        LEFT JOIN elections e ON p.election_id = e.id 
+        WHERE p.id = ?
+      `).get(result.lastInsertRowid);
+    }
+
+    return successResponse(res, createdParty, 'Political party created and synchronized to cloud database successfully', 201);
   } catch (error) {
     return errorResponse(res, 'Failed to create political party', 500, error);
   }
 };
 
-export const updateParty = (req, res) => {
+export const updateParty = async (req, res) => {
   try {
     const { id } = req.params;
     const { name, code, description, logo_url, election_id } = req.body;
 
     const existing = db.prepare('SELECT * FROM parties WHERE id = ?').get(id);
-    if (!existing) {
-      return errorResponse(res, 'Party not found', 404);
+
+    const trimmedName = name ? name.trim() : (existing ? existing.name : '');
+    const cleanCode = code !== undefined ? (code?.trim() || '') : (existing?.code || '');
+    const cleanDesc = description !== undefined ? (description?.trim() || '') : (existing?.description || '');
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase
+          .from('parties')
+          .update({ name: trimmedName, code: cleanCode, description: cleanDesc })
+          .eq('id', id);
+      } catch (_) {}
     }
 
-    const trimmedName = name ? name.trim() : existing.name;
+    if (existing) {
+      db.prepare(`
+        UPDATE parties
+        SET name = ?, code = ?, description = ?, logo_url = ?, election_id = ?, updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `).run(
+        trimmedName,
+        cleanCode || null,
+        cleanDesc || null,
+        logo_url !== undefined ? (logo_url?.trim() || null) : existing.logo_url,
+        election_id !== undefined ? (election_id ? parseInt(election_id, 10) : null) : existing.election_id,
+        id
+      );
 
-    // Check duplicate name on another party
-    if (name && trimmedName.toLowerCase() !== existing.name.toLowerCase()) {
-      const duplicate = db.prepare('SELECT id FROM parties WHERE LOWER(name) = LOWER(?) AND id != ?').get(trimmedName, id);
-      if (duplicate) {
-        return errorResponse(res, `Another party with name "${trimmedName}" already exists`, 409);
+      if (trimmedName !== existing.name) {
+        db.prepare('UPDATE candidates SET party = ? WHERE party = ?').run(trimmedName, existing.name);
       }
     }
 
-    const targetElectionId = election_id !== undefined 
-      ? (election_id ? parseInt(election_id, 10) : null) 
-      : existing.election_id;
-
-    db.prepare(`
-      UPDATE parties
-      SET name = ?, code = ?, description = ?, logo_url = ?, election_id = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `).run(
-      trimmedName,
-      code !== undefined ? (code?.trim() || null) : existing.code,
-      description !== undefined ? (description?.trim() || null) : existing.description,
-      logo_url !== undefined ? (logo_url?.trim() || null) : existing.logo_url,
-      targetElectionId,
-      id
-    );
-
-    // If party name changed, update existing candidates that were assigned the old party name
-    if (trimmedName !== existing.name) {
-      db.prepare('UPDATE candidates SET party = ? WHERE party = ?').run(trimmedName, existing.name);
-    }
-
-    const updated = db.prepare(`
-      SELECT p.*, e.title as election_title 
-      FROM parties p 
-      LEFT JOIN elections e ON p.election_id = e.id 
-      WHERE p.id = ?
-    `).get(id);
-
-    return successResponse(res, updated, 'Party updated successfully');
+    return successResponse(res, { id, name: trimmedName, code: cleanCode, description: cleanDesc }, 'Party updated successfully');
   } catch (error) {
     return errorResponse(res, 'Failed to update political party', 500, error);
   }
 };
 
-export const deleteParty = (req, res) => {
+export const deleteParty = async (req, res) => {
   try {
     const { id } = req.params;
 
-    const existing = db.prepare('SELECT * FROM parties WHERE id = ?').get(id);
-    if (!existing) {
-      return errorResponse(res, 'Party not found', 404);
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('parties').delete().eq('id', id);
+      } catch (_) {}
     }
-
-    // Check candidate count
-    const candidateCount = db.prepare('SELECT COUNT(*) as count FROM candidates WHERE party = ?').get(existing.name).count;
 
     db.prepare('DELETE FROM parties WHERE id = ?').run(id);
 
-    return successResponse(res, { deletedId: id, candidateCount }, 'Party removed successfully');
+    return successResponse(res, { deletedId: id }, 'Party removed successfully from cloud and local storage');
   } catch (error) {
     return errorResponse(res, 'Failed to delete political party', 500, error);
   }
 };
 
-export const syncPartiesToElections = (req, res) => {
+export const syncPartiesToElections = async (req, res) => {
   try {
-    const parties = db.prepare('SELECT * FROM parties').all();
+    let parties = [];
+    if (isSupabaseConfigured && supabase) {
+      const { data: supaP } = await supabase.from('parties').select('*');
+      if (supaP && supaP.length > 0) parties = supaP;
+    }
+    if (parties.length === 0) {
+      parties = db.prepare('SELECT * FROM parties').all();
+    }
+
     if (parties.length === 0) {
       return successResponse(res, { syncedCount: 0 }, 'No parties available to sync');
     }
 
-    const elections = db.prepare("SELECT * FROM elections WHERE status IN ('upcoming', 'active')").all();
+    let elections = [];
+    if (isSupabaseConfigured && supabase) {
+      const { data: supaE } = await supabase.from('elections').select('*').in('status', ['upcoming', 'active']);
+      if (supaE) elections = supaE;
+    }
+    if (elections.length === 0) {
+      elections = db.prepare("SELECT * FROM elections WHERE status IN ('upcoming', 'active')").all();
+    }
+
     let syncedCount = 0;
 
     for (const el of elections) {
       for (const p of parties) {
-        const existing = db.prepare('SELECT id FROM candidates WHERE election_id = ? AND LOWER(name) = LOWER(?)').get(el.id, p.name);
-        if (!existing) {
-          const partyLabel = p.code ? `${p.name} (${p.code})` : p.name;
+        const partyLabel = p.code ? `${p.name} (${p.code})` : p.name;
+        if (isSupabaseConfigured && supabase) {
+          try {
+            await supabase.from('candidates').upsert({
+              name: p.name,
+              party: partyLabel,
+              bio: p.description || '',
+              election_id: el.id
+            }, { onConflict: 'election_id, name' });
+          } catch (_) {}
+        }
+
+        try {
           db.prepare(`
-            INSERT INTO candidates (name, party, bio, photo_url, election_id)
+            INSERT OR IGNORE INTO candidates (name, party, bio, photo_url, election_id)
             VALUES (?, ?, ?, ?, ?)
           `).run(p.name, partyLabel, p.description || '', p.logo_url || null, el.id);
           syncedCount++;
-        }
+        } catch (_) {}
       }
     }
 

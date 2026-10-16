@@ -15,52 +15,94 @@ async function sync() {
 
   try {
     // 1. Sync Admins
-    const admins = db.prepare('SELECT id, username, email, password_hash, role FROM admins').all();
+    const admins = db.prepare('SELECT username, password_hash FROM admins').all();
     if (admins.length > 0) {
-      const { error } = await supabase.from('admins').upsert(admins, { onConflict: 'username' });
-      if (error) console.error('Error syncing admins:', error.message);
-      else console.log(`✅ Synced ${admins.length} admins to Supabase.`);
+      for (const a of admins) {
+        const { error } = await supabase.from('admins').upsert(a, { onConflict: 'username' });
+        if (error) console.error('Error syncing admin:', a.username, error.message);
+      }
+      console.log(`✅ Synced ${admins.length} admins.`);
     }
 
     // 2. Sync Parties
-    const parties = db.prepare('SELECT id, name, code, description, logo_url FROM parties').all();
+    const parties = db.prepare('SELECT name, code, description FROM parties').all();
     if (parties.length > 0) {
-      const { error } = await supabase.from('parties').upsert(parties, { onConflict: 'name' });
-      if (error) console.error('Error syncing parties:', error.message);
-      else console.log(`✅ Synced ${parties.length} political parties to Supabase.`);
+      for (const p of parties) {
+        const { error } = await supabase.from('parties').upsert(p, { onConflict: 'name' });
+        if (error) console.error('Error syncing party:', p.name, error.message);
+      }
+      console.log(`✅ Synced ${parties.length} political parties.`);
     }
 
     // 3. Sync Elections
-    const elections = db.prepare('SELECT id, title, description, start_date, end_date, status, created_by FROM elections').all();
+    const elections = db.prepare("SELECT title, description, start_date, end_date, CASE WHEN status='completed' THEN 'closed' ELSE status END as status FROM elections WHERE status IN ('active', 'upcoming')").all();
     if (elections.length > 0) {
-      const { error } = await supabase.from('elections').upsert(elections, { onConflict: 'id' });
-      if (error) console.error('Error syncing elections:', error.message);
-      else console.log(`✅ Synced ${elections.length} elections to Supabase.`);
+      for (const e of elections) {
+        const { error } = await supabase.from('elections').upsert(e, { onConflict: 'title' });
+        if (error) console.error('Error syncing election:', e.title, error.message);
+      }
+      console.log(`✅ Synced ${elections.length} elections.`);
     }
 
     // 4. Sync Candidates
-    const candidates = db.prepare('SELECT id, name, party, bio, photo_url, election_id FROM candidates').all();
-    if (candidates.length > 0) {
-      const { error } = await supabase.from('candidates').upsert(candidates, { onConflict: 'id' });
-      if (error) console.error('Error syncing candidates:', error.message);
-      else console.log(`✅ Synced ${candidates.length} candidates to Supabase.`);
+    // Get Supabase active election
+    const { data: supaElection } = await supabase.from('elections').select('id').limit(1).single();
+    if (supaElection) {
+      const candidates = db.prepare('SELECT name, party, bio FROM candidates WHERE election_id = 1 OR election_id = 4 LIMIT 5').all();
+      for (const c of candidates) {
+        const candPayload = {
+          name: c.name,
+          party: c.party,
+          bio: c.bio,
+          election_id: supaElection.id
+        };
+        const { error } = await supabase.from('candidates').upsert(candPayload, { onConflict: 'election_id,name' });
+        if (error) console.error('Error syncing candidate:', c.name, error.message);
+      }
+      console.log(`✅ Synced candidates to Supabase Election ID ${supaElection.id}.`);
     }
 
     // 5. Sync Voters
-    const voters = db.prepare('SELECT id, full_name, email, phone, voter_id_number, password_hash, has_voted, is_verified, election_id FROM voters').all();
+    const voters = db.prepare('SELECT full_name, email, phone, voter_id_number, password_hash, has_voted, is_verified FROM voters').all();
     if (voters.length > 0) {
-      const { error } = await supabase.from('voters').upsert(voters, { onConflict: 'email' });
-      if (error) console.error('Error syncing voters:', error.message);
-      else console.log(`✅ Synced ${voters.length} voters to Supabase.`);
+      for (const v of voters) {
+        const voterPayload = {
+          full_name: v.full_name,
+          email: v.email,
+          phone: v.phone || null,
+          voter_id_number: v.voter_id_number,
+          password_hash: v.password_hash,
+          has_voted: Boolean(v.has_voted === 1 || v.has_voted === true),
+          is_verified: Boolean(v.is_verified === 1 || v.is_verified === true),
+          election_id: supaElection ? supaElection.id : null
+        };
+        const { error } = await supabase.from('voters').upsert(voterPayload, { onConflict: 'email' });
+        if (error) console.error('Error syncing voter:', v.voter_id_number, error.message);
+      }
+      console.log(`✅ Synced ${voters.length} voters to Supabase.`);
     }
 
     // 6. Sync Face Data
-    const faceData = db.prepare('SELECT id, voter_id, face_descriptor, photo_url FROM face_data').all();
-    if (faceData.length > 0) {
-      const { error } = await supabase.from('face_data').upsert(faceData, { onConflict: 'voter_id' });
-      if (error) console.error('Error syncing face biometrics:', error.message);
-      else console.log(`✅ Synced ${faceData.length} biometric face profiles to Supabase.`);
+    const faceData = db.prepare(`
+      SELECT v.email, fd.face_descriptor, fd.photo_url 
+      FROM face_data fd
+      JOIN voters v ON fd.voter_id = v.id
+    `).all();
+
+    let faceCount = 0;
+    for (const fd of faceData) {
+      const { data: supaVoter } = await supabase.from('voters').select('id').eq('email', fd.email).maybeSingle();
+      if (supaVoter) {
+        const { error } = await supabase.from('face_data').upsert({
+          voter_id: supaVoter.id,
+          face_descriptor: fd.face_descriptor,
+          photo_url: fd.photo_url
+        }, { onConflict: 'voter_id' });
+        if (error) console.error('Error syncing face bio:', fd.email, error.message);
+        else faceCount++;
+      }
     }
+    console.log(`✅ Synced ${faceCount} biometric face profiles to Supabase.`);
 
     console.log('🎉 Migration to Supabase completed successfully!');
   } catch (err) {

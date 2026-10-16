@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import db from '../config/db.js';
+import { supabase, isSupabaseConfigured } from '../config/supabase.js';
 import { successResponse, errorResponse, getPagination, getSearchFilter } from '../utils/helpers.js';
 
 export const getAll = (req, res) => {
@@ -65,7 +66,7 @@ export const getById = (req, res) => {
   }
 };
 
-export const create = (req, res) => {
+export const create = async (req, res) => {
   try {
     const { name, party, bio, election_id } = req.body;
     
@@ -78,6 +79,19 @@ export const create = (req, res) => {
       photo_url = `/uploads/candidates/${req.file.filename}`;
     }
     
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('candidates').insert({
+          name,
+          party: party || null,
+          bio: bio || null,
+          election_id
+        });
+      } catch (sbErr) {
+        console.warn('[Supabase] Candidate cloud insert warning:', sbErr.message);
+      }
+    }
+
     const sql = `
       INSERT INTO candidates (name, party, bio, photo_url, election_id)
       VALUES (?, ?, ?, ?, ?)
@@ -97,7 +111,7 @@ export const create = (req, res) => {
   }
 };
 
-export const update = (req, res) => {
+export const update = async (req, res) => {
   try {
     const id = req.params.id;
     const { name, party, bio, election_id } = req.body;
@@ -119,6 +133,16 @@ export const update = (req, res) => {
       }
     }
 
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('candidates').update({
+          name: name || existing.name,
+          party: party !== undefined ? party : existing.party,
+          bio: bio !== undefined ? bio : existing.bio
+        }).eq('id', id);
+      } catch (_) {}
+    }
+
     const sql = `
       UPDATE candidates 
       SET name = COALESCE(?, name),
@@ -138,13 +162,19 @@ export const update = (req, res) => {
   }
 };
 
-export const remove = (req, res) => {
+export const remove = async (req, res) => {
   try {
     const id = req.params.id;
     const existing = db.prepare('SELECT * FROM candidates WHERE id = ?').get(id);
     
     if (!existing) {
       return errorResponse(res, 'Candidate not found', 404);
+    }
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('candidates').delete().eq('id', id);
+      } catch (_) {}
     }
 
     db.prepare('DELETE FROM candidates WHERE id = ?').run(id);
