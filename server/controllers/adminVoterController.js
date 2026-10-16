@@ -1,15 +1,74 @@
 import bcrypt from 'bcryptjs';
 import db from '../config/db.js';
+import { supabase, isSupabaseConfigured } from '../config/supabase.js';
 import { successResponse, errorResponse, getPagination, getSearchFilter } from '../utils/helpers.js';
 
-export const getAll = (req, res) => {
+export const getAll = async (req, res) => {
   try {
     const { page, limit, offset } = getPagination(req.query);
-    const searchFilter = getSearchFilter(req.query, ['v.full_name', 'v.email', 'v.voter_id_number', 'v.phone']);
+    const search = req.query.search?.trim();
     const election_id = req.query.election_id;
     const is_verified = req.query.is_verified;
     const has_voted = req.query.has_voted;
 
+    // 1. Supabase Cloud lookup
+    if (isSupabaseConfigured && supabase) {
+      try {
+        let query = supabase
+          .from('voters')
+          .select('id, full_name, email, phone, voter_id_number, has_voted, is_verified, election_id, created_at, elections(title, status), face_data(photo_url)', { count: 'exact' });
+
+        if (election_id) {
+          query = query.eq('election_id', election_id);
+        }
+        if (is_verified !== undefined && is_verified !== '') {
+          query = query.eq('is_verified', is_verified === '1' || is_verified === true);
+        }
+        if (has_voted !== undefined && has_voted !== '') {
+          query = query.eq('has_voted', has_voted === '1' || has_voted === true);
+        }
+        if (search) {
+          query = query.or(`full_name.ilike.%${search}%,email.ilike.%${search}%,voter_id_number.ilike.%${search}%,phone.ilike.%${search}%`);
+        }
+
+        query = query.order('created_at', { ascending: false }).range(offset, offset + limit - 1);
+
+        const { data: supaVoters, count: totalCount, error: supaErr } = await query;
+
+        if (!supaErr && supaVoters) {
+          const mapped = supaVoters.map(v => ({
+            id: v.id,
+            full_name: v.full_name,
+            email: v.email,
+            phone: v.phone,
+            voter_id_number: v.voter_id_number,
+            has_voted: v.has_voted ? 1 : 0,
+            is_verified: v.is_verified ? 1 : 0,
+            election_id: v.election_id,
+            created_at: v.created_at,
+            election_title: v.elections?.title || null,
+            election_status: v.elections?.status || null,
+            face_photo_url: v.face_data?.[0]?.photo_url || null,
+            has_face_data: v.face_data?.length > 0 ? 1 : 0
+          }));
+
+          return successResponse(res, {
+            voters: mapped,
+            pagination: {
+              page,
+              limit,
+              total: totalCount || mapped.length,
+              totalPages: Math.ceil((totalCount || mapped.length) / limit)
+            }
+          }, 'Voters retrieved successfully from cloud database');
+        }
+      } catch (err) {
+        console.warn('[Supabase] admin getAll voters warning:', err.message);
+      }
+    }
+
+    // 2. Local SQLite fallback
+    const searchFilter = getSearchFilter(req.query, ['v.full_name', 'v.email', 'v.voter_id_number', 'v.phone']);
     let whereClause = 'WHERE 1=1';
     let queryParams = [];
 
@@ -61,9 +120,38 @@ export const getAll = (req, res) => {
   }
 };
 
-export const getById = (req, res) => {
+export const getById = async (req, res) => {
   try {
     const id = req.params.id;
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: v } = await supabase
+          .from('voters')
+          .select('id, full_name, email, phone, voter_id_number, has_voted, is_verified, election_id, created_at, elections(title, status), face_data(photo_url)')
+          .eq('id', id)
+          .maybeSingle();
+
+        if (v) {
+          return successResponse(res, {
+            id: v.id,
+            full_name: v.full_name,
+            email: v.email,
+            phone: v.phone,
+            voter_id_number: v.voter_id_number,
+            has_voted: v.has_voted ? 1 : 0,
+            is_verified: v.is_verified ? 1 : 0,
+            election_id: v.election_id,
+            created_at: v.created_at,
+            election_title: v.elections?.title || null,
+            election_status: v.elections?.status || null,
+            face_photo_url: v.face_data?.[0]?.photo_url || null,
+            has_face_data: v.face_data?.length > 0 ? 1 : 0
+          }, 'Voter retrieved successfully from cloud');
+        }
+      } catch (_) {}
+    }
+
     const sql = `
       SELECT v.id, v.full_name, v.email, v.phone, v.voter_id_number, v.has_voted, v.is_verified, v.election_id, v.created_at,
              e.title as election_title, e.status as election_status,
@@ -94,12 +182,26 @@ export const create = async (req, res) => {
       return errorResponse(res, 'Full name, email, voter ID number, and election are required', 400);
     }
 
-    const existingEmail = db.prepare('SELECT id FROM voters WHERE email = ?').get(email);
+    const cleanEmail = email.trim().toLowerCase();
+    const cleanVoterId = voter_id_number.trim();
+
+    if (isSupabaseConfigured && supabase) {
+      const { data: supaEmail } = await supabase.from('voters').select('id').ilike('email', cleanEmail).maybeSingle();
+      if (supaEmail) {
+        return errorResponse(res, 'A voter with this email already exists in the central database', 409);
+      }
+      const { data: supaId } = await supabase.from('voters').select('id').eq('voter_id_number', cleanVoterId).maybeSingle();
+      if (supaId) {
+        return errorResponse(res, 'A voter with this Voter ID number already exists in the central database', 409);
+      }
+    }
+
+    const existingEmail = db.prepare('SELECT id FROM voters WHERE LOWER(email) = ?').get(cleanEmail);
     if (existingEmail) {
       return errorResponse(res, 'A voter with this email already exists', 409);
     }
 
-    const existingVoterId = db.prepare('SELECT id FROM voters WHERE voter_id_number = ?').get(voter_id_number);
+    const existingVoterId = db.prepare('SELECT id FROM voters WHERE voter_id_number = ?').get(cleanVoterId);
     if (existingVoterId) {
       return errorResponse(res, 'A voter with this Voter ID number already exists', 409);
     }
@@ -108,6 +210,28 @@ export const create = async (req, res) => {
     const saltRounds = 10;
     const passwordHash = await bcrypt.hash(defaultPassword, saltRounds);
 
+    let createdId = null;
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: supaNew, error: supaErr } = await supabase.from('voters').insert({
+          full_name,
+          email: cleanEmail,
+          phone: phone || null,
+          voter_id_number: cleanVoterId,
+          password_hash: passwordHash,
+          has_voted: false,
+          is_verified: is_verified ? true : false,
+          election_id: parseInt(election_id, 10)
+        }).select().single();
+
+        if (supaNew) createdId = supaNew.id;
+        if (supaErr) console.error('[Supabase] Admin insert voter error:', supaErr);
+      } catch (err) {
+        console.error('[Supabase] Admin insert exception:', err);
+      }
+    }
+
     const stmt = db.prepare(`
       INSERT INTO voters (full_name, email, phone, voter_id_number, password_hash, has_voted, is_verified, election_id)
       VALUES (?, ?, ?, ?, ?, 0, ?, ?)
@@ -115,53 +239,72 @@ export const create = async (req, res) => {
 
     const result = stmt.run(
       full_name,
-      email,
+      cleanEmail,
       phone || null,
-      voter_id_number,
+      cleanVoterId,
       passwordHash,
       is_verified ? 1 : 0,
-      election_id
+      parseInt(election_id, 10)
     );
 
-    return successResponse(res, { id: result.lastInsertRowid }, 'Voter created successfully', 201);
+    if (!createdId) createdId = result.lastInsertRowid;
+
+    return successResponse(res, { id: createdId }, 'Voter created and synchronized successfully', 201);
   } catch (error) {
     return errorResponse(res, 'Failed to create voter', 500, error);
   }
 };
 
-export const toggleVerify = (req, res) => {
+export const toggleVerify = async (req, res) => {
   try {
     const id = req.params.id;
     const { is_verified } = req.body;
 
-    const existing = db.prepare('SELECT * FROM voters WHERE id = ?').get(id);
-    if (!existing) {
-      return errorResponse(res, 'Voter not found', 404);
+    let currentStatus = 0;
+
+    if (isSupabaseConfigured && supabase) {
+      try {
+        const { data: supaV } = await supabase.from('voters').select('id, is_verified').eq('id', id).maybeSingle();
+        if (supaV) {
+          const newBool = is_verified !== undefined ? Boolean(is_verified) : !supaV.is_verified;
+          await supabase.from('voters').update({ is_verified: newBool }).eq('id', id);
+          currentStatus = newBool ? 1 : 0;
+        }
+      } catch (_) {}
     }
 
-    // Toggle if is_verified not explicitly supplied
-    const newStatus = is_verified !== undefined ? (is_verified ? 1 : 0) : (existing.is_verified ? 0 : 1);
+    const existing = db.prepare('SELECT * FROM voters WHERE id = ?').get(id);
+    if (existing) {
+      const newStatus = is_verified !== undefined ? (is_verified ? 1 : 0) : (existing.is_verified ? 0 : 1);
+      db.prepare(`
+        UPDATE voters 
+        SET is_verified = ?, updated_at = CURRENT_TIMESTAMP 
+        WHERE id = ?
+      `).run(newStatus, id);
+      currentStatus = newStatus;
+    }
 
-    db.prepare(`
-      UPDATE voters 
-      SET is_verified = ?, updated_at = CURRENT_TIMESTAMP 
-      WHERE id = ?
-    `).run(newStatus, id);
-
-    return successResponse(res, { id, is_verified: newStatus }, `Voter ${newStatus ? 'verified' : 'unverified'} successfully`);
+    return successResponse(res, { id, is_verified: currentStatus }, `Voter ${currentStatus ? 'verified' : 'unverified'} successfully`);
   } catch (error) {
     return errorResponse(res, 'Failed to update verification status', 500, error);
   }
 };
 
-export const remove = (req, res) => {
+export const remove = async (req, res) => {
   try {
     const id = req.params.id;
-    const result = db.prepare('DELETE FROM voters WHERE id = ?').run(id);
 
-    if (result.changes === 0) {
-      return errorResponse(res, 'Voter not found', 404);
+    if (isSupabaseConfigured && supabase) {
+      try {
+        await supabase.from('face_data').delete().eq('voter_id', id);
+        await supabase.from('votes').delete().eq('voter_id', id);
+        await supabase.from('voters').delete().eq('id', id);
+      } catch (_) {}
     }
+
+    db.prepare('DELETE FROM face_data WHERE voter_id = ?').run(id);
+    db.prepare('DELETE FROM votes WHERE voter_id = ?').run(id);
+    db.prepare('DELETE FROM voters WHERE id = ?').run(id);
 
     return successResponse(res, null, 'Voter deleted successfully');
   } catch (error) {
