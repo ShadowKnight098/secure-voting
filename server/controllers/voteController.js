@@ -470,8 +470,8 @@ export const getResults = async (req, res) => {
           const { count: supaVoteCount } = await supabase.from('votes').select('*', { count: 'exact', head: true }).eq('election_id', electionId);
           totalVotes = supaVoteCount || 0;
 
-          // Eligible voters count
-          const { count: supaEligibleCount } = await supabase.from('voters').select('*', { count: 'exact', head: true }).eq('is_verified', true);
+          // Eligible voters count — voters assigned to this specific election
+          const { count: supaEligibleCount } = await supabase.from('voters').select('*', { count: 'exact', head: true }).eq('election_id', electionId).eq('is_verified', true);
           totalEligibleVoters = supaEligibleCount || 0;
 
           // Candidates

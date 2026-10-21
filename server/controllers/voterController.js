@@ -131,7 +131,13 @@ export const register = async (req, res) => {
     let electionStatus = 'active';
 
     if (isSupabaseConfigured && supabase) {
-      const { data: supaEl } = await supabase.from('elections').select('id, title, status').limit(1).maybeSingle();
+      const { data: supaEl } = await supabase
+        .from('elections')
+        .select('id, title, status')
+        .in('status', ['active', 'upcoming'])
+        .order('status', { ascending: true }) // 'active' sorts before 'upcoming'
+        .limit(1)
+        .maybeSingle();
       if (supaEl) {
         assignedElectionId = supaEl.id;
         electionTitle = supaEl.title;

@@ -155,9 +155,20 @@ export const updateParty = async (req, res) => {
     const { id } = req.params;
     const { name, code, description, logo_url, election_id } = req.body;
 
-    const existing = db.prepare('SELECT * FROM parties WHERE id = ?').get(id);
+    let existing = db.prepare('SELECT * FROM parties WHERE id = ?').get(id);
 
-    const trimmedName = name ? name.trim() : (existing ? existing.name : '');
+    if (!existing && isSupabaseConfigured && supabase) {
+      try {
+        const { data: supaP } = await supabase.from('parties').select('*').eq('id', id).maybeSingle();
+        if (supaP) existing = supaP;
+      } catch (_) {}
+    }
+
+    if (!existing) {
+      return errorResponse(res, 'Party not found', 404);
+    }
+
+    const trimmedName = name ? name.trim() : existing.name;
     const cleanCode = code !== undefined ? (code?.trim() || '') : (existing?.code || '');
     const cleanDesc = description !== undefined ? (description?.trim() || '') : (existing?.description || '');
 
@@ -170,23 +181,31 @@ export const updateParty = async (req, res) => {
       } catch (_) {}
     }
 
-    if (existing) {
-      db.prepare(`
-        UPDATE parties
-        SET name = ?, code = ?, description = ?, logo_url = ?, election_id = ?, updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `).run(
-        trimmedName,
-        cleanCode || null,
-        cleanDesc || null,
-        logo_url !== undefined ? (logo_url?.trim() || null) : existing.logo_url,
-        election_id !== undefined ? (election_id ? parseInt(election_id, 10) : null) : existing.election_id,
-        id
-      );
+    try {
+      const localElect = election_id ? db.prepare('SELECT id FROM elections WHERE id = ?').get(parseInt(election_id, 10)) : null;
+      const safeElectionId = localElect ? parseInt(election_id, 10) : (existing.election_id || null);
 
-      if (trimmedName !== existing.name) {
-        db.prepare('UPDATE candidates SET party = ? WHERE party = ?').run(trimmedName, existing.name);
+      const localPartyExists = db.prepare('SELECT id FROM parties WHERE id = ?').get(id);
+      if (localPartyExists) {
+        db.prepare(`
+          UPDATE parties
+          SET name = ?, code = ?, description = ?, logo_url = ?, election_id = ?, updated_at = CURRENT_TIMESTAMP
+          WHERE id = ?
+        `).run(
+          trimmedName,
+          cleanCode || null,
+          cleanDesc || null,
+          logo_url !== undefined ? (logo_url?.trim() || null) : existing.logo_url,
+          safeElectionId,
+          id
+        );
+
+        if (trimmedName !== existing.name) {
+          db.prepare('UPDATE candidates SET party = ? WHERE party = ?').run(trimmedName, existing.name);
+        }
       }
+    } catch (localErr) {
+      console.warn('[SQLite] Party update mirror warning:', localErr.message);
     }
 
     return successResponse(res, { id, name: trimmedName, code: cleanCode, description: cleanDesc }, 'Party updated successfully');
