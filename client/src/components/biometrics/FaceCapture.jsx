@@ -55,7 +55,13 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
     };
   }, []);
 
-  // 2. Start webcam stream (Ultra fast initialization)
+// Reusable single detector options to prevent GC churn and minimize computation power
+const TINY_DETECTOR_OPTIONS = new faceapi.TinyFaceDetectorOptions({ 
+  inputSize: 224, 
+  scoreThreshold: 0.40 
+});
+
+  // 2. Start webcam stream with proper metadata readiness check
   const startCamera = useCallback(async () => {
     try {
       setCameraError(null);
@@ -66,8 +72,8 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
 
       const stream = await navigator.mediaDevices.getUserMedia({
         video: {
-          width: { ideal: 640, max: 640 },
-          height: { ideal: 480, max: 480 },
+          width: { ideal: 640 },
+          height: { ideal: 480 },
           facingMode: 'user'
         },
         audio: false
@@ -76,8 +82,18 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        videoRef.current.play();
-        setCameraActive(true);
+        videoRef.current.onloadedmetadata = async () => {
+          try {
+            await videoRef.current.play();
+            if (canvasRef.current && videoRef.current) {
+              canvasRef.current.width = videoRef.current.videoWidth || 640;
+              canvasRef.current.height = videoRef.current.videoHeight || 480;
+            }
+            setCameraActive(true);
+          } catch (pErr) {
+            console.warn('Video play interrupted:', pErr);
+          }
+        };
       }
     } catch (err) {
       console.warn('Camera access error:', err);
@@ -91,15 +107,16 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
 
   // 3. Stop camera
   const stopCamera = useCallback(() => {
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
     if (detectIntervalRef.current) {
       clearInterval(detectIntervalRef.current);
       detectIntervalRef.current = null;
     }
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach(track => track.stop());
+      streamRef.current = null;
+    }
     setCameraActive(false);
+    isDetectingRef.current = false;
   }, []);
 
   // Manage camera lifecycle
@@ -112,30 +129,26 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
     };
   }, [modelsLoaded, capturedPhoto, startCamera, stopCamera]);
 
-  // 4. Ultra-Fast Face Detection loop on live stream (pure bounding box, zero descriptor overhead)
+  // 4. Low-CPU Face Detection loop on live stream (runs every 500ms — minimal computation power)
   useEffect(() => {
     if (!cameraActive || capturedPhoto || !videoRef.current || capturing) return;
 
     const runDetection = async () => {
+      if (document.hidden) return;
       if (!videoRef.current || videoRef.current.paused || videoRef.current.ended || capturing) return;
+      if (videoRef.current.readyState < 2 || videoRef.current.videoWidth === 0) return;
       if (isDetectingRef.current) return;
       isDetectingRef.current = true;
 
       try {
-        // Fast detection only: inputSize 160 takes ~10ms
         const allDetections = await faceapi.detectAllFaces(
           videoRef.current, 
-          new faceapi.TinyFaceDetectorOptions({ inputSize: 160, scoreThreshold: 0.55 })
+          TINY_DETECTOR_OPTIONS
         );
 
         const ctx = canvasRef.current?.getContext('2d');
-        if (canvasRef.current && videoRef.current) {
-          const displaySize = {
-            width: videoRef.current.videoWidth || 640,
-            height: videoRef.current.videoHeight || 480
-          };
-          faceapi.matchDimensions(canvasRef.current, displaySize);
-          ctx.clearRect(0, 0, displaySize.width, displaySize.height);
+        if (ctx && canvasRef.current) {
+          ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
         }
 
         if (!allDetections || allDetections.length === 0) {
@@ -150,7 +163,6 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
           setDetectionScore(null);
           setDetectionError(`Multiple faces detected (${allDetections.length}). Only 1 person is allowed in the frame!`);
           
-          // Draw warning red boxes
           if (ctx && canvasRef.current) {
             allDetections.forEach(det => {
               const box = det.box || det.detection?.box;
@@ -169,7 +181,7 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
         const rawScore = singleFace.score ?? singleFace.detection?.score ?? 0.8;
         const score = Math.round(rawScore * 100);
 
-        if (score < 55) {
+        if (score < 40) {
           setFaceDetected(false);
           setDetectionScore(score);
           setDetectionError('Face clarity too low. Please look directly into the camera with good lighting.');
@@ -181,18 +193,18 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
         setDetectionScore(score);
         setDetectionError(null);
 
-        // Draw HUD Green box
+        // Draw HUD Green box with corner brackets
         if (ctx && canvasRef.current) {
-          const box = singleFace.box || singleFace.detection?.box;
+          const displaySize = {
+            width: canvasRef.current.width,
+            height: canvasRef.current.height
+          };
+          const resized = faceapi.resizeResults(singleFace, displaySize);
+          const box = resized.box || resized.detection?.box;
           if (box) {
-            ctx.lineWidth = 3;
-            ctx.strokeStyle = '#22C55E';
-            ctx.strokeRect(box.x, box.y, box.width, box.height);
-
-            // Corner brackets
             const length = 20;
-            ctx.lineWidth = 5;
-            ctx.strokeStyle = '#FACC15';
+            ctx.lineWidth = 4;
+            ctx.strokeStyle = '#22C55E';
 
             // Top-left
             ctx.beginPath();
@@ -230,7 +242,7 @@ export const FaceCapture = ({ onCapture, capturedPhoto, onReset }) => {
       }
     };
 
-    detectIntervalRef.current = setInterval(runDetection, 140);
+    detectIntervalRef.current = setInterval(runDetection, 500);
 
     return () => {
       if (detectIntervalRef.current) {

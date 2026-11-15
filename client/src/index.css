@@ -137,6 +137,25 @@
     0%, 100% { opacity: 1; }
     50% { opacity: 0.5; }
   }
+
+  .animate-scan-laser {
+    animation: scan-laser 2.2s ease-in-out infinite;
+  }
+
+  @keyframes scan-laser {
+    0% {
+      top: 5%;
+      opacity: 0.85;
+    }
+    50% {
+      top: 92%;
+      opacity: 1;
+    }
+    100% {
+      top: 5%;
+      opacity: 0.85;
+    }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
