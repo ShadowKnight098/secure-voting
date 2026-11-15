@@ -9,6 +9,8 @@ import Card from '../../components/ui/Card';
 import EmptyState from '../../components/ui/EmptyState';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { getImageUrl } from '../../utils/imageUrl';
+import VotingLoader from '../../components/ui/VotingLoader';
+import useDelayedLoader from '../../hooks/useDelayedLoader';
 
 export const CandidatesPage = () => {
   const { electionId } = useParams();
@@ -16,6 +18,7 @@ export const CandidatesPage = () => {
   const [candidates, setCandidates] = useState([]);
   const [election, setElection] = useState(null);
   const [loading, setLoading] = useState(true);
+  const showLoader = useDelayedLoader(loading, 750);
   const [deleteDialog, setDeleteDialog] = useState({ isOpen: false, id: null, name: '' });
 
   const fetchData = async () => {
@@ -71,9 +74,13 @@ export const CandidatesPage = () => {
         </Button>
       </div>
 
-      {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1,2,3].map(i => <div key={i} className="h-56 rounded-[14px] animate-skeleton"></div>)}
+      {showLoader ? (
+        <div className="py-20 flex items-center justify-center animate-fade-in">
+          <VotingLoader 
+            fullScreen={false}
+            message="Loading Candidates..."
+            submessage="Retrieving candidate portfolio and details"
+          />
         </div>
       ) : candidates.length === 0 ? (
         <Card className="p-12">

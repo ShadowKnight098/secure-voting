@@ -10,6 +10,8 @@ import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import EmptyState from '../../components/ui/EmptyState';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
+import VotingLoader from '../../components/ui/VotingLoader';
+import useDelayedLoader from '../../hooks/useDelayedLoader';
 
 const statusTabs = ['All', 'Live', 'Upcoming', 'Completed', 'Cancelled'];
 
@@ -17,6 +19,7 @@ export const ElectionsPage = () => {
   const navigate = useNavigate();
   const [elections, setElections] = useState([]);
   const [loading, setLoading] = useState(true);
+  const showLoader = useDelayedLoader(loading, 750);
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearch = useDebounce(searchTerm, 400);
   const [statusFilter, setStatusFilter] = useState('All');
@@ -113,9 +116,13 @@ export const ElectionsPage = () => {
           </div>
         </div>
 
-        {loading ? (
-          <div className="space-y-3">
-            {[1,2,3].map(i => <div key={i} className="h-16 rounded-[12px] animate-skeleton"></div>)}
+        {showLoader ? (
+          <div className="py-20 flex items-center justify-center animate-fade-in">
+            <VotingLoader 
+              fullScreen={false}
+              message="Loading Elections..."
+              submessage="Fetching ongoing and upcoming election registers"
+            />
           </div>
         ) : elections.length === 0 ? (
           <EmptyState 

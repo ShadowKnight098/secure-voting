@@ -18,6 +18,7 @@ import { voteService } from '../../services/voteService';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import VotingLoader from '../../components/ui/VotingLoader';
+import useDelayedLoader from '../../hooks/useDelayedLoader';
 
 export const VoteReceiptPage = () => {
   const { electionId } = useParams();
@@ -26,6 +27,7 @@ export const VoteReceiptPage = () => {
 
   const initialReceipt = location.state?.receipt || null;
   const [loading, setLoading] = useState(!initialReceipt);
+  const showLoader = useDelayedLoader(loading, 750);
   const [receipt, setReceipt] = useState(initialReceipt);
   const [copied, setCopied] = useState(false);
 
@@ -61,7 +63,7 @@ export const VoteReceiptPage = () => {
     window.print();
   };
 
-  if (loading) {
+  if (showLoader) {
     return (
       <VotingLoader 
         message="Retrieving Receipt..." 

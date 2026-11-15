@@ -18,6 +18,7 @@ import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
 import VotingLoader from '../../components/ui/VotingLoader';
+import useDelayedLoader from '../../hooks/useDelayedLoader';
 import FaceVerificationModal from '../../components/biometrics/FaceVerificationModal';
 import { getImageUrl } from '../../utils/imageUrl';
 
@@ -26,6 +27,7 @@ export const VoterBallotPage = () => {
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
+  const showLoader = useDelayedLoader(loading, 750);
   const [election, setElection] = useState(null);
   const [candidates, setCandidates] = useState([]);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
@@ -111,7 +113,7 @@ export const VoterBallotPage = () => {
     }
   };
 
-  if (loading) {
+  if (showLoader) {
     return <VotingLoader message="Preparing Ballot..." submessage="Validating candidates and election status" />;
   }
 

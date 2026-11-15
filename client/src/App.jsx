@@ -18,13 +18,15 @@ import VoteReceiptPage from './pages/voter/VoteReceiptPage';
 import ElectionResultsPage from './pages/ElectionResultsPage';
 import AppLayout from './components/layout/AppLayout';
 import VotingLoader from './components/ui/VotingLoader';
+import useDelayedLoader from './hooks/useDelayedLoader';
 import { useAuth } from './context/AuthContext';
 import { useVoterAuth } from './context/VoterAuthContext';
 
 const AdminProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
+  const showLoader = useDelayedLoader(loading, 650);
   
-  if (loading) {
+  if (showLoader) {
     return <VotingLoader message="Authenticating Admin..." submessage="Verifying session" />;
   }
   
@@ -37,8 +39,9 @@ const AdminProtectedRoute = ({ children }) => {
 
 const VoterProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useVoterAuth();
+  const showLoader = useDelayedLoader(loading, 650);
 
-  if (loading) {
+  if (showLoader) {
     return <VotingLoader message="Loading Voter Portal..." submessage="Verifying credentials" />;
   }
 

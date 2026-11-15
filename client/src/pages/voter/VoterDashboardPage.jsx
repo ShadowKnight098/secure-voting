@@ -19,18 +19,19 @@ import {
 import { useVoterAuth } from '../../context/VoterAuthContext';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
-import Badge from '../../components/ui/Badge';
 import VotingLoader from '../../components/ui/VotingLoader';
+import useDelayedLoader from '../../hooks/useDelayedLoader';
 
 export const VoterDashboardPage = () => {
   const { voter, logout, refreshProfile, loading } = useVoterAuth();
+  const showLoader = useDelayedLoader(loading, 750);
   const navigate = useNavigate();
 
   useEffect(() => {
     refreshProfile();
   }, []);
 
-  if (loading) {
+  if (showLoader) {
     return <VotingLoader message="Loading Voter Dashboard..." submessage="Fetching registration and election status" />;
   }
 

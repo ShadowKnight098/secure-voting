@@ -157,42 +157,57 @@
     }
   }
 
-  /* Paper Slot Loader Animation */
+  /* Paper Slot Loader Animation - Ultra Smooth 60FPS */
   .animate-paper-slot {
-    animation: paper-slot 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    animation: paper-slot 1.25s cubic-bezier(0.45, 0.05, 0.25, 1) infinite;
+    will-change: transform, opacity;
+    backface-visibility: hidden;
   }
 
   @keyframes paper-slot {
     0% {
-      transform: translateY(-38px) scaleY(0.85);
+      transform: translateY(-44px) scaleY(0.9);
       opacity: 0;
     }
-    18% {
+    15% {
       opacity: 1;
-      transform: translateY(-20px) scaleY(1);
+      transform: translateY(-22px) scaleY(1);
     }
-    80% {
+    50% {
+      opacity: 1;
+      transform: translateY(0px) scaleY(1);
+    }
+    82% {
       opacity: 1;
       transform: translateY(24px) scaleY(1);
     }
     100% {
-      transform: translateY(42px) scaleY(0.85);
+      transform: translateY(46px) scaleY(0.9);
       opacity: 0;
     }
   }
 
   .animate-slot-shadow {
-    animation: slot-shadow 1.4s ease-in-out infinite;
+    animation: slot-shadow 1.25s cubic-bezier(0.45, 0.05, 0.25, 1) infinite;
+    will-change: transform, opacity;
   }
 
   @keyframes slot-shadow {
-    0%, 100% {
-      transform: scaleX(0.8);
-      opacity: 0.3;
+    0% {
+      transform: scaleX(0.75);
+      opacity: 0.25;
     }
     50% {
-      transform: scaleX(1.2);
-      opacity: 0.75;
+      transform: scaleX(1.0);
+      opacity: 0.5;
+    }
+    82% {
+      transform: scaleX(1.3);
+      opacity: 0.85;
+    }
+    100% {
+      transform: scaleX(0.75);
+      opacity: 0.25;
     }
   }
 }

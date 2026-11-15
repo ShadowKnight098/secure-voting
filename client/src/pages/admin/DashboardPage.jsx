@@ -7,6 +7,8 @@ import StatsCard from '../../components/ui/StatsCard';
 import Card from '../../components/ui/Card';
 import Badge from '../../components/ui/Badge';
 import Button from '../../components/ui/Button';
+import VotingLoader from '../../components/ui/VotingLoader';
+import useDelayedLoader from '../../hooks/useDelayedLoader';
 
 export const DashboardPage = () => {
   const { user } = useAuth();
@@ -14,6 +16,7 @@ export const DashboardPage = () => {
   const [stats, setStats] = useState(null);
   const [recentElections, setRecentElections] = useState([]);
   const [loading, setLoading] = useState(true);
+  const showLoader = useDelayedLoader(loading, 750);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -39,14 +42,14 @@ export const DashboardPage = () => {
     fetchDashboardData();
   }, []);
 
-  if (loading) {
+  if (showLoader) {
     return (
-      <div className="space-y-6">
-        <div className="h-8 w-48 rounded-[10px] animate-skeleton mb-8"></div>
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-          {[1,2,3,4].map(i => <div key={i} className="h-36 rounded-[14px] animate-skeleton"></div>)}
-        </div>
-        <div className="h-96 rounded-[14px] animate-skeleton mt-8"></div>
+      <div className="py-24 flex items-center justify-center animate-fade-in">
+        <VotingLoader 
+          fullScreen={false} 
+          message="Loading Admin Dashboard..." 
+          submessage="Retrieving election metrics & ledgers" 
+        />
       </div>
     );
   }

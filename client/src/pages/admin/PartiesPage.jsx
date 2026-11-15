@@ -9,11 +9,14 @@ import Input from '../../components/ui/Input';
 import Modal from '../../components/ui/Modal';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import EmptyState from '../../components/ui/EmptyState';
+import VotingLoader from '../../components/ui/VotingLoader';
+import useDelayedLoader from '../../hooks/useDelayedLoader';
 
 export const PartiesPage = () => {
   const [parties, setParties] = useState([]);
   const [elections, setElections] = useState([]);
   const [loading, setLoading] = useState(true);
+  const showLoader = useDelayedLoader(loading, 750);
   const [syncing, setSyncing] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedElectionFilter, setSelectedElectionFilter] = useState('');
@@ -226,11 +229,13 @@ export const PartiesPage = () => {
         </div>
 
         {/* Content */}
-        {loading ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="h-48 rounded-[14px] animate-skeleton"></div>
-            ))}
+        {showLoader ? (
+          <div className="py-20 flex items-center justify-center animate-fade-in">
+            <VotingLoader 
+              fullScreen={false}
+              message="Loading Political Parties..."
+              submessage="Fetching recognized party entries"
+            />
           </div>
         ) : filteredParties.length === 0 ? (
           <EmptyState

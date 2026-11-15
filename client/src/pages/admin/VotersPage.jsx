@@ -21,6 +21,8 @@ import Modal from '../../components/ui/Modal';
 import EmptyState from '../../components/ui/EmptyState';
 import ConfirmDialog from '../../components/ui/ConfirmDialog';
 import { getImageUrl } from '../../utils/imageUrl';
+import VotingLoader from '../../components/ui/VotingLoader';
+import useDelayedLoader from '../../hooks/useDelayedLoader';
 
 const verificationTabs = [
   { id: 'all', label: 'All voters' },
@@ -32,6 +34,7 @@ export const VotersPage = () => {
   const [voters, setVoters] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, totalPages: 1 });
   const [loading, setLoading] = useState(true);
+  const showLoader = useDelayedLoader(loading, 750);
   const [searchTerm, setSearchTerm] = useState('');
   const debouncedSearch = useDebounce(searchTerm, 400);
 
@@ -229,11 +232,13 @@ export const VotersPage = () => {
         </div>
 
         {/* Table Content */}
-        {loading ? (
-          <div className="space-y-3">
-            {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="h-16 rounded-[12px] animate-skeleton"></div>
-            ))}
+        {showLoader ? (
+          <div className="py-20 flex items-center justify-center animate-fade-in">
+            <VotingLoader 
+              fullScreen={false}
+              message="Loading Registered Voters..."
+              submessage="Verifying identity registers and biometric flags"
+            />
           </div>
         ) : voters.length === 0 ? (
           <EmptyState

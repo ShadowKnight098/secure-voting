@@ -17,6 +17,7 @@ import Card from '../components/ui/Card';
 import Button from '../components/ui/Button';
 import Badge from '../components/ui/Badge';
 import VotingLoader from '../components/ui/VotingLoader';
+import useDelayedLoader from '../hooks/useDelayedLoader';
 import { getImageUrl } from '../utils/imageUrl';
 
 export const ElectionResultsPage = () => {
@@ -24,6 +25,7 @@ export const ElectionResultsPage = () => {
   const navigate = useNavigate();
 
   const [loading, setLoading] = useState(true);
+  const showLoader = useDelayedLoader(loading, 750);
   const [resultsData, setResultsData] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -45,7 +47,7 @@ export const ElectionResultsPage = () => {
     fetchResults();
   }, [id]);
 
-  if (loading) {
+  if (showLoader) {
     return (
       <VotingLoader 
         message="Calculating Election Tally..." 
