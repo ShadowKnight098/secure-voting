@@ -1,5 +1,4 @@
 import db from '../config/db.js';
-import { supabase, isSupabaseConfigured } from '../config/supabase.js';
 import { successResponse, errorResponse, getPagination, getSearchFilter } from '../utils/helpers.js';
 
 const syncElectionStatuses = () => {
@@ -48,40 +47,6 @@ export const getAll = async (req, res) => {
     const searchFilter = getSearchFilter(req.query, ['title', 'description']);
     const status = req.query.status;
 
-    // 1. Supabase Cloud lookup
-    if (isSupabaseConfigured && supabase) {
-      try {
-        let query = supabase.from('elections').select('*, candidates(count)', { count: 'exact' });
-        if (status) {
-          query = query.eq('status', status);
-        }
-        if (req.query.search?.trim()) {
-          const s = req.query.search.trim();
-          query = query.or(`title.ilike.%${s}%,description.ilike.%${s}%`);
-        }
-        query = query.order('start_date', { ascending: false }).range(offset, offset + limit - 1);
-        const { data: supaElects, count: totalCount, error: supaErr } = await query;
-
-        if (!supaErr && supaElects && supaElects.length > 0) {
-          const mapped = supaElects.map(e => ({
-            ...e,
-            candidate_count: e.candidates?.[0]?.count || 0
-          }));
-          return successResponse(res, {
-            elections: mapped,
-            pagination: {
-              page,
-              limit,
-              total: totalCount || mapped.length,
-              totalPages: Math.ceil((totalCount || mapped.length) / limit)
-            }
-          }, 'Elections retrieved successfully from cloud');
-        }
-      } catch (err) {
-        console.warn('[Supabase] elections getAll warning:', err.message);
-      }
-    }
-
     let whereClause = 'WHERE 1=1';
     let queryParams = [];
 
@@ -122,23 +87,6 @@ export const getById = async (req, res) => {
     syncElectionStatuses();
     const id = req.params.id;
 
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { data: supaElect } = await supabase
-          .from('elections')
-          .select('*, candidates(count)')
-          .eq('id', id)
-          .maybeSingle();
-
-        if (supaElect) {
-          return successResponse(res, {
-            ...supaElect,
-            candidate_count: supaElect.candidates?.[0]?.count || 0
-          }, 'Election retrieved successfully from cloud');
-        }
-      } catch (_) {}
-    }
-
     const sql = `
       SELECT e.*, (SELECT COUNT(*) FROM candidates c WHERE c.election_id = e.id) as candidate_count 
       FROM elections e 
@@ -167,67 +115,25 @@ export const create = async (req, res) => {
     }
 
     const calculatedStatus = getCalculatedStatus(finalStart, finalEnd, status);
-    let newElectionId = null;
 
-    // Write to Supabase FIRST (authoritative source — IDs come from here)
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { data: supaElect, error: supaErr } = await supabase.from('elections').insert({
-          title,
-          description: description || null,
-          start_date: new Date(finalStart).toISOString(),
-          end_date: new Date(finalEnd).toISOString(),
-          status: calculatedStatus,
-          created_by: 1
-        }).select().single();
+    const result = db.prepare(`
+      INSERT INTO elections (title, description, start_date, end_date, status, created_by)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(title, description || null, finalStart, finalEnd, calculatedStatus, req.user?.id || 1);
 
-        if (supaErr) {
-          console.error('[Supabase] Election create error:', supaErr);
-        } else if (supaElect) {
-          newElectionId = supaElect.id;
-          // Auto-attach parties as candidates in Supabase
-          const { data: supaParties } = await supabase.from('parties').select('*');
-          if (supaParties && supaParties.length > 0) {
-            for (const p of supaParties) {
-              const partyLabel = p.code ? `${p.name} (${p.code})` : p.name;
-              await supabase.from('candidates').insert({
-                name: p.name,
-                party: partyLabel,
-                bio: p.description || `Official ballot entry for ${p.name}`,
-                election_id: supaElect.id
-              });
-            }
-          }
-          console.log(`[Supabase] Election "${title}" created with id=${supaElect.id}`);
-        }
-      } catch (sbErr) {
-        console.warn('[Supabase] Election cloud insert warning:', sbErr.message);
+    const newElectionId = result.lastInsertRowid;
+
+    // Auto-attach parties as candidates in this new election
+    const allParties = db.prepare('SELECT * FROM parties').all();
+    if (allParties.length > 0) {
+      const insertCand = db.prepare(`
+        INSERT OR IGNORE INTO candidates (name, party, bio, photo_url, election_id)
+        VALUES (?, ?, ?, ?, ?)
+      `);
+      for (const p of allParties) {
+        const partyLabel = p.code ? `${p.name} (${p.code})` : p.name;
+        insertCand.run(p.name, partyLabel, p.description || '', p.logo_url || null, newElectionId);
       }
-    }
-
-    // Mirror to local SQLite (resilient cache)
-    try {
-      const result = db.prepare(`
-        INSERT INTO elections (title, description, start_date, end_date, status, created_by)
-        VALUES (?, ?, ?, ?, ?, ?)
-      `).run(title, description || null, finalStart, finalEnd, calculatedStatus, req.user?.id || 1);
-
-      if (!newElectionId) newElectionId = result.lastInsertRowid;
-
-      // Auto-attach local parties as candidates
-      const allParties = db.prepare('SELECT * FROM parties').all();
-      if (allParties.length > 0) {
-        const insertCand = db.prepare(`
-          INSERT OR IGNORE INTO candidates (name, party, bio, photo_url, election_id)
-          VALUES (?, ?, ?, ?, ?)
-        `);
-        for (const p of allParties) {
-          const partyLabel = p.code ? `${p.name} (${p.code})` : p.name;
-          insertCand.run(p.name, partyLabel, p.description || '', p.logo_url || null, result.lastInsertRowid);
-        }
-      }
-    } catch (localErr) {
-      console.warn('[SQLite] Election local mirror warning:', localErr.message);
     }
 
     return successResponse(res, { id: newElectionId }, 'Election created successfully', 201);
@@ -243,25 +149,7 @@ export const update = async (req, res) => {
     const finalStart = start_date || startDate;
     const finalEnd = end_date || endDate;
 
-    // Try SQLite first, then Supabase for existing record
-    let existing = db.prepare('SELECT * FROM elections WHERE id = ?').get(id);
-
-    if (!existing && isSupabaseConfigured && supabase) {
-      try {
-        const { data: supaExist } = await supabase.from('elections').select('*').eq('id', id).maybeSingle();
-        if (supaExist) {
-          existing = {
-            id: supaExist.id,
-            title: supaExist.title,
-            description: supaExist.description,
-            start_date: supaExist.start_date,
-            end_date: supaExist.end_date,
-            status: supaExist.status
-          };
-        }
-      } catch (_) {}
-    }
-
+    const existing = db.prepare('SELECT * FROM elections WHERE id = ?').get(id);
     if (!existing) {
       return errorResponse(res, 'Election not found', 404);
     }
@@ -272,39 +160,16 @@ export const update = async (req, res) => {
       ? 'cancelled' 
       : (status ? status : getCalculatedStatus(updatedStart, updatedEnd, existing.status));
 
-    // Update Supabase (authoritative)
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase.from('elections').update({
-          title: title || existing.title,
-          description: description !== undefined ? description : existing.description,
-          start_date: finalStart ? new Date(finalStart).toISOString() : existing.start_date,
-          end_date: finalEnd ? new Date(finalEnd).toISOString() : existing.end_date,
-          status: calculatedStatus
-        }).eq('id', id);
-      } catch (sbErr) {
-        console.warn('[Supabase] election update warning:', sbErr.message);
-      }
-    }
-
-    // Mirror to SQLite (resilient)
-    try {
-      const localExists = db.prepare('SELECT id FROM elections WHERE id = ?').get(id);
-      if (localExists) {
-        db.prepare(`
-          UPDATE elections 
-          SET title = COALESCE(?, title),
-              description = COALESCE(?, description),
-              start_date = COALESCE(?, start_date),
-              end_date = COALESCE(?, end_date),
-              status = ?,
-              updated_at = CURRENT_TIMESTAMP
-          WHERE id = ?
-        `).run(title, description, finalStart, finalEnd, calculatedStatus, id);
-      }
-    } catch (localErr) {
-      console.warn('[SQLite] election update mirror warning:', localErr.message);
-    }
+    db.prepare(`
+      UPDATE elections 
+      SET title = COALESCE(?, title),
+          description = COALESCE(?, description),
+          start_date = COALESCE(?, start_date),
+          end_date = COALESCE(?, end_date),
+          status = ?,
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `).run(title, description, finalStart, finalEnd, calculatedStatus, id);
 
     return successResponse(res, null, 'Election updated successfully');
   } catch (error) {
@@ -315,26 +180,9 @@ export const update = async (req, res) => {
 export const remove = async (req, res) => {
   try {
     const id = req.params.id;
-    let found = false;
 
-    // Delete from Supabase (authoritative)
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { data: supaExist } = await supabase.from('elections').select('id').eq('id', id).maybeSingle();
-        if (supaExist) {
-          found = true;
-          await supabase.from('elections').delete().eq('id', id);
-        }
-      } catch (sbErr) {
-        console.warn('[Supabase] election delete warning:', sbErr.message);
-      }
-    }
-
-    // Delete from SQLite mirror
     const result = db.prepare('DELETE FROM elections WHERE id = ?').run(id);
-    if (result.changes > 0) found = true;
-
-    if (!found) {
+    if (result.changes === 0) {
       return errorResponse(res, 'Election not found', 404);
     }
 

@@ -7,6 +7,9 @@ const db = new Database(dbPath, {
 });
 db.pragma('journal_mode = WAL');
 db.pragma('foreign_keys = ON');
+db.pragma('synchronous = NORMAL');
+db.pragma('cache_size = -64000');
+db.pragma('temp_store = MEMORY');
 
 const createTables = `
 CREATE TABLE IF NOT EXISTS admins (
@@ -88,6 +91,20 @@ CREATE TABLE IF NOT EXISTS parties (
 `;
 
 db.exec(createTables);
+
+// Performance Indexes for instant lookups
+db.exec(`
+  CREATE INDEX IF NOT EXISTS idx_elections_status ON elections(status);
+  CREATE INDEX IF NOT EXISTS idx_candidates_election_id ON candidates(election_id);
+  CREATE INDEX IF NOT EXISTS idx_candidates_party ON candidates(party);
+  CREATE INDEX IF NOT EXISTS idx_voters_email ON voters(email);
+  CREATE INDEX IF NOT EXISTS idx_voters_voter_id_number ON voters(voter_id_number);
+  CREATE INDEX IF NOT EXISTS idx_voters_election_id ON voters(election_id);
+  CREATE INDEX IF NOT EXISTS idx_voters_is_verified ON voters(is_verified);
+  CREATE INDEX IF NOT EXISTS idx_votes_voter_election ON votes(voter_id, election_id);
+  CREATE INDEX IF NOT EXISTS idx_parties_name ON parties(name);
+  CREATE INDEX IF NOT EXISTS idx_face_data_voter_id ON face_data(voter_id);
+`);
 
 // Safe migration for existing databases: ensure election_id column exists
 try {

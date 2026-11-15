@@ -18,14 +18,20 @@ export const DashboardPage = () => {
   useEffect(() => {
     const fetchDashboardData = async () => {
       try {
-        const [statsData, recentData] = await Promise.all([
-          dashboardService.getStats(),
-          dashboardService.getRecentElections()
-        ]);
+        const statsData = await dashboardService.getStats();
         setStats(statsData);
-        setRecentElections(recentData);
+        if (statsData?.recentElections) {
+          setRecentElections(statsData.recentElections.map(e => ({
+            id: e.id,
+            title: e.title,
+            status: e.status,
+            participants: e.candidate_count,
+            startDate: e.start_date,
+            endDate: e.end_date
+          })));
+        }
       } catch (error) {
-        console.error("Failed to load dashboard data");
+        console.error("Failed to load dashboard data", error);
       } finally {
         setLoading(false);
       }

@@ -1,59 +1,16 @@
 import fs from 'fs';
 import path from 'path';
 import db from '../config/db.js';
-import { supabase, isSupabaseConfigured } from '../config/supabase.js';
 import { successResponse, errorResponse, getPagination, getSearchFilter } from '../utils/helpers.js';
 
 export const getAll = async (req, res) => {
   try {
     const election_id = req.query.election_id;
     if (!election_id) {
-        return errorResponse(res, 'election_id query parameter is required', 400);
+      return errorResponse(res, 'election_id query parameter is required', 400);
     }
 
     const { page, limit, offset } = getPagination(req.query);
-    const search = req.query.search?.trim();
-
-    // 1. Supabase Cloud lookup
-    if (isSupabaseConfigured && supabase) {
-      try {
-        let query = supabase
-          .from('candidates')
-          .select('id, name, party, bio, election_id, elections(title)', { count: 'exact' })
-          .eq('election_id', election_id);
-
-        if (search) {
-          query = query.or(`name.ilike.%${search}%,party.ilike.%${search}%`);
-        }
-
-        query = query.order('name', { ascending: true }).range(offset, offset + limit - 1);
-        const { data: supaCands, count: totalCount, error: supaErr } = await query;
-
-        if (!supaErr && supaCands && supaCands.length > 0) {
-          const mapped = supaCands.map(c => ({
-            id: c.id,
-            name: c.name,
-            party: c.party,
-            bio: c.bio,
-            photo_url: null,
-            election_id: c.election_id,
-            election_title: c.elections?.title || ''
-          }));
-          return successResponse(res, {
-            candidates: mapped,
-            pagination: {
-              page,
-              limit,
-              total: totalCount || mapped.length,
-              totalPages: Math.ceil((totalCount || mapped.length) / limit)
-            }
-          }, 'Candidates retrieved successfully from cloud');
-        }
-      } catch (err) {
-        console.warn('[Supabase] candidates getAll warning:', err.message);
-      }
-    }
-
     const searchFilter = getSearchFilter(req.query, ['c.name', 'c.party']);
     
     let whereClause = 'WHERE c.election_id = ?';
@@ -91,28 +48,6 @@ export const getById = async (req, res) => {
   try {
     const id = req.params.id;
 
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { data: c } = await supabase
-          .from('candidates')
-          .select('id, name, party, bio, election_id, elections(title)')
-          .eq('id', id)
-          .maybeSingle();
-
-        if (c) {
-          return successResponse(res, {
-            id: c.id,
-            name: c.name,
-            party: c.party,
-            bio: c.bio,
-            photo_url: null,
-            election_id: c.election_id,
-            election_title: c.elections?.title || ''
-          }, 'Candidate retrieved successfully from cloud');
-        }
-      } catch (_) {}
-    }
-
     const sql = `
       SELECT c.*, e.title as election_title 
       FROM candidates c 
@@ -144,48 +79,24 @@ export const create = async (req, res) => {
       photo_url = `/uploads/candidates/${req.file.filename}`;
     }
 
-    let finalId = null;
-    
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { data: supaCand, error: sbErr } = await supabase.from('candidates').insert({
-          name,
-          party: party || null,
-          bio: bio || null,
-          election_id: parseInt(election_id, 10)
-        }).select().single();
-
-        if (supaCand) {
-          finalId = supaCand.id;
-        } else if (sbErr) {
-          console.warn('[Supabase] Candidate cloud insert warning:', sbErr.message);
-        }
-      } catch (sbErr) {
-        console.warn('[Supabase] Candidate cloud insert warning:', sbErr.message);
-      }
+    const localElect = db.prepare('SELECT id FROM elections WHERE id = ?').get(election_id);
+    if (!localElect) {
+      return errorResponse(res, 'Target election does not exist', 404);
     }
 
-    try {
-      const localElect = db.prepare('SELECT id FROM elections WHERE id = ?').get(election_id);
-      if (localElect) {
-        const sql = `
-          INSERT INTO candidates (name, party, bio, photo_url, election_id)
-          VALUES (?, ?, ?, ?, ?)
-        `;
-        const result = db.prepare(sql).run(
-          name, 
-          party || null, 
-          bio || null, 
-          photo_url, 
-          election_id
-        );
-        if (!finalId) finalId = result.lastInsertRowid;
-      }
-    } catch (localErr) {
-      console.warn('[SQLite] Candidate mirror warning:', localErr.message);
-    }
+    const sql = `
+      INSERT INTO candidates (name, party, bio, photo_url, election_id)
+      VALUES (?, ?, ?, ?, ?)
+    `;
+    const result = db.prepare(sql).run(
+      name, 
+      party || null, 
+      bio || null, 
+      photo_url, 
+      election_id
+    );
 
-    return successResponse(res, { id: finalId || Date.now() }, 'Candidate created successfully', 201);
+    return successResponse(res, { id: result.lastInsertRowid }, 'Candidate created successfully', 201);
   } catch (error) {
     return errorResponse(res, 'Failed to create candidate', 500, error);
   }
@@ -196,62 +107,37 @@ export const update = async (req, res) => {
     const id = req.params.id;
     const { name, party, bio, election_id } = req.body;
     
-    let existing = db.prepare('SELECT * FROM candidates WHERE id = ?').get(id);
-
-    if (!existing && isSupabaseConfigured && supabase) {
-      try {
-        const { data: supaCand } = await supabase.from('candidates').select('*').eq('id', id).maybeSingle();
-        if (supaCand) {
-          existing = supaCand;
-        }
-      } catch (_) {}
-    }
-
+    const existing = db.prepare('SELECT * FROM candidates WHERE id = ?').get(id);
     if (!existing) {
-       return errorResponse(res, 'Candidate not found', 404);
+      return errorResponse(res, 'Candidate not found', 404);
     }
 
     let photo_url = existing.photo_url || null;
     if (req.file) {
       photo_url = `/uploads/candidates/${req.file.filename}`;
-      // Remove old photo
       if (existing.photo_url) {
-          const oldPath = path.join(process.cwd(), existing.photo_url);
-          if (fs.existsSync(oldPath)) {
-              fs.unlinkSync(oldPath);
-          }
+        const oldPath = path.join(process.cwd(), existing.photo_url);
+        if (fs.existsSync(oldPath)) {
+          fs.unlinkSync(oldPath);
+        }
       }
     }
 
-    if (isSupabaseConfigured && supabase) {
-      try {
-        await supabase.from('candidates').update({
-          name: name || existing.name,
-          party: party !== undefined ? party : existing.party,
-          bio: bio !== undefined ? bio : existing.bio
-        }).eq('id', id);
-      } catch (_) {}
-    }
+    const localElect = election_id ? db.prepare('SELECT id FROM elections WHERE id = ?').get(election_id) : null;
+    const safeElectionId = localElect ? election_id : (existing.election_id || null);
 
-    try {
-      const localElect = election_id ? db.prepare('SELECT id FROM elections WHERE id = ?').get(election_id) : null;
-      const safeElectionId = localElect ? election_id : (existing.election_id || null);
+    const sql = `
+      UPDATE candidates 
+      SET name = COALESCE(?, name),
+          party = COALESCE(?, party),
+          bio = COALESCE(?, bio),
+          photo_url = COALESCE(?, photo_url),
+          election_id = COALESCE(?, election_id),
+          updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `;
 
-      const sql = `
-        UPDATE candidates 
-        SET name = COALESCE(?, name),
-            party = COALESCE(?, party),
-            bio = COALESCE(?, bio),
-            photo_url = COALESCE(?, photo_url),
-            election_id = COALESCE(?, election_id),
-            updated_at = CURRENT_TIMESTAMP
-        WHERE id = ?
-      `;
-
-      db.prepare(sql).run(name, party, bio, photo_url, safeElectionId, id);
-    } catch (localErr) {
-      console.warn('[SQLite] Candidate update mirror warning:', localErr.message);
-    }
+    db.prepare(sql).run(name, party, bio, photo_url, safeElectionId, id);
 
     return successResponse(res, null, 'Candidate updated successfully');
   } catch (error) {
@@ -262,33 +148,19 @@ export const update = async (req, res) => {
 export const remove = async (req, res) => {
   try {
     const id = req.params.id;
-    let found = false;
-
-    if (isSupabaseConfigured && supabase) {
-      try {
-        const { data: supaCand } = await supabase.from('candidates').select('id').eq('id', id).maybeSingle();
-        if (supaCand) {
-          found = true;
-          await supabase.from('candidates').delete().eq('id', id);
-        }
-      } catch (_) {}
-    }
 
     const existing = db.prepare('SELECT * FROM candidates WHERE id = ?').get(id);
-    if (existing) {
-      found = true;
-      db.prepare('DELETE FROM candidates WHERE id = ?').run(id);
-
-      if (existing.photo_url) {
-          const oldPath = path.join(process.cwd(), existing.photo_url);
-          if (fs.existsSync(oldPath)) {
-              fs.unlinkSync(oldPath);
-          }
-      }
+    if (!existing) {
+      return errorResponse(res, 'Candidate not found', 404);
     }
 
-    if (!found) {
-      return errorResponse(res, 'Candidate not found', 404);
+    db.prepare('DELETE FROM candidates WHERE id = ?').run(id);
+
+    if (existing.photo_url) {
+      const oldPath = path.join(process.cwd(), existing.photo_url);
+      if (fs.existsSync(oldPath)) {
+        fs.unlinkSync(oldPath);
+      }
     }
 
     return successResponse(res, null, 'Candidate deleted successfully');
