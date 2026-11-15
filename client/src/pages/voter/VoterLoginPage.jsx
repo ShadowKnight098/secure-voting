@@ -30,23 +30,23 @@ export const VoterLoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-lavender flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 relative text-ink">
+    <div className="min-h-screen bg-lavender flex flex-col justify-center py-6 sm:py-12 px-3 sm:px-6 lg:px-8 relative text-ink">
       <div className="sm:mx-auto sm:w-full sm:max-w-md text-center">
-        <div className="inline-flex items-center justify-center w-16 h-16 rounded-[14px] bg-violet text-white border-2 border-ink shadow-neo mb-4">
-          <UserCheck className="w-8 h-8 text-sun" />
+        <div className="inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-[14px] bg-violet text-white border-2 border-ink shadow-neo mb-3 sm:mb-4">
+          <UserCheck className="w-7 h-7 sm:w-8 sm:h-8 text-sun" />
         </div>
-        <h2 className="text-3xl font-extrabold text-ink tracking-tight">Voter portal</h2>
-        <p className="mt-2 text-sm font-medium text-ink/70">
+        <h2 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">Voter portal</h2>
+        <p className="mt-1.5 text-xs sm:text-sm font-medium text-ink/70">
           Sign in to check verification status and cast your vote
         </p>
       </div>
 
-      <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
-        <Card className="p-6 sm:p-10 shadow-neo-xl">
+      <div className="mt-6 sm:mt-8 sm:mx-auto sm:w-full sm:max-w-md">
+        <Card className="p-4 sm:p-10 shadow-neo-xl">
           {error && (
-            <div className="mb-6 p-4 rounded-[12px] bg-coral border-2 border-ink text-ink text-sm font-bold shadow-neo-sm animate-slide-up flex items-center gap-2">
+            <div className="mb-5 p-3.5 sm:p-4 rounded-[12px] bg-coral/20 border-2 border-ink text-ink text-xs sm:text-sm font-bold shadow-neo-sm animate-slide-up flex items-center gap-2">
               <span>⚠️</span>
-              <span>{error}</span>
+              <span className="break-words">{error}</span>
             </div>
           )}
 

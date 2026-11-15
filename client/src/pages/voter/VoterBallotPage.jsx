@@ -119,33 +119,33 @@ export const VoterBallotPage = () => {
   }
 
   return (
-    <div className="min-h-screen bg-lavender text-ink py-10 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-4xl mx-auto space-y-6">
+    <div className="min-h-screen bg-lavender text-ink py-6 sm:py-10 px-3 sm:px-6 lg:px-8">
+      <div className="max-w-4xl mx-auto space-y-5 sm:space-y-6">
         {/* Navigation Bar */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
           <button 
             onClick={() => navigate('/voter/dashboard')}
-            className="inline-flex items-center text-sm font-bold text-ink bg-surface border-2 border-ink px-3 py-1.5 rounded-[10px] shadow-neo-sm hover:-translate-y-0.5 active:translate-y-0.5 transition-all"
+            className="inline-flex items-center text-xs sm:text-sm font-bold text-ink bg-surface border-2 border-ink px-3 py-1.5 rounded-[10px] shadow-neo-sm hover:-translate-y-0.5 active:translate-y-0.5 transition-all"
           >
-            <ArrowLeft size={16} className="mr-1.5" />
+            <ArrowLeft size={15} className="mr-1.5" />
             Back to Dashboard
           </button>
 
           {isFaceVerified && (
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-mint text-ink font-bold text-xs border-2 border-ink shadow-neo-sm">
-              <CheckCircle2 size={15} /> Face Verified (Ready to Vote)
+              <CheckCircle2 size={14} /> Face Verified (Ready to Vote)
             </span>
           )}
         </div>
 
         {/* Election Header Card */}
-        <Card className="p-6 sm:p-8 shadow-neo-xl">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b-2 border-ink">
+        <Card className="p-4 sm:p-8 shadow-neo-xl">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 pb-4 border-b-2 border-ink">
             <div>
-              <div className="inline-block px-3 py-1 rounded-full bg-sun border-2 border-ink text-xs font-black text-ink shadow-neo-sm mb-2">
+              <div className="inline-block px-3 py-0.5 rounded-full bg-sun border-2 border-ink text-[11px] sm:text-xs font-black text-ink shadow-neo-sm mb-2">
                 Official Electronic Ballot
               </div>
-              <h1 className="text-2xl sm:text-3xl font-black text-ink">{election?.title}</h1>
+              <h1 className="text-xl sm:text-3xl font-black text-ink">{election?.title}</h1>
             </div>
             {election?.status && <Badge status={election.status} />}
           </div>
@@ -188,16 +188,16 @@ export const VoterBallotPage = () => {
                     key={cand.id}
                     onClick={() => handleSelectCandidate(cand)}
                     className={`
-                      cursor-pointer rounded-[14px] border-2 border-ink p-5 transition-all
+                      cursor-pointer rounded-[14px] border-2 border-ink p-3.5 sm:p-5 transition-all
                       ${isSelected 
                         ? 'bg-sun shadow-neo-xl -translate-y-1 ring-4 ring-violet/40' 
                         : 'bg-surface shadow-neo hover:-translate-y-0.5 hover:shadow-neo-lg'
                       }
                     `}
                   >
-                    <div className="flex items-start gap-4">
+                    <div className="flex items-start gap-3 sm:gap-4">
                       {/* Photo / Avatar */}
-                      <div className="w-16 h-16 rounded-[12px] border-2 border-ink bg-lavender flex-shrink-0 overflow-hidden shadow-neo-sm flex items-center justify-center font-black text-xl text-violet">
+                      <div className="w-13 h-13 sm:w-16 sm:h-16 rounded-[12px] border-2 border-ink bg-lavender flex-shrink-0 overflow-hidden shadow-neo-sm flex items-center justify-center font-black text-lg sm:text-xl text-violet">
                         {cand.photo_url ? (
                           <img 
                             src={getImageUrl(cand.photo_url)} 
@@ -211,21 +211,21 @@ export const VoterBallotPage = () => {
 
                       {/* Details */}
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <h3 className="font-extrabold text-lg text-ink truncate">{cand.name}</h3>
-                          <div className={`w-6 h-6 rounded-full border-2 border-ink flex items-center justify-center ${isSelected ? 'bg-ink text-white' : 'bg-surface'}`}>
-                            {isSelected && <Check size={14} />}
+                        <div className="flex items-center justify-between gap-1">
+                          <h3 className="font-extrabold text-base sm:text-lg text-ink truncate">{cand.name}</h3>
+                          <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full border-2 border-ink flex items-center justify-center flex-shrink-0 ${isSelected ? 'bg-ink text-white' : 'bg-surface'}`}>
+                            {isSelected && <Check size={13} />}
                           </div>
                         </div>
 
                         {cand.party && (
-                          <span className="inline-block px-2.5 py-0.5 bg-violet text-white text-[11px] font-extrabold rounded-full border border-ink mt-1">
+                          <span className="inline-block px-2 sm:px-2.5 py-0.5 bg-violet text-white text-[10px] sm:text-[11px] font-extrabold rounded-full border border-ink mt-1 truncate max-w-full">
                             {cand.party}
                           </span>
                         )}
 
                         {cand.bio && (
-                          <p className="text-xs font-medium text-ink/75 mt-2 line-clamp-3">
+                          <p className="text-xs font-medium text-ink/75 mt-1.5 sm:mt-2 line-clamp-2 sm:line-clamp-3">
                             {cand.bio}
                           </p>
                         )}
@@ -239,10 +239,10 @@ export const VoterBallotPage = () => {
         </div>
 
         {/* Action Panel */}
-        <div className="p-6 bg-surface rounded-[16px] border-2 border-ink shadow-neo-xl flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div>
-            <span className="text-xs font-bold text-ink/60 uppercase block">Selected Candidate:</span>
-            <span className="text-lg font-black text-ink">
+        <div className="p-4 sm:p-6 bg-surface rounded-[14px] sm:rounded-[16px] border-2 border-ink shadow-neo-xl flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4">
+          <div className="min-w-0">
+            <span className="text-[11px] sm:text-xs font-bold text-ink/60 uppercase block">Selected Candidate:</span>
+            <span className="text-base sm:text-lg font-black text-ink block truncate">
               {selectedCandidate ? `${selectedCandidate.name} (${selectedCandidate.party || 'Independent'})` : 'None chosen yet'}
             </span>
           </div>
@@ -252,9 +252,9 @@ export const VoterBallotPage = () => {
             size="lg"
             disabled={!selectedCandidate}
             onClick={handleStartVote}
-            className="w-full sm:w-auto shadow-neo-lg"
+            className="w-full sm:w-auto shadow-neo-lg flex-shrink-0"
           >
-            <ShieldCheck size={20} className="mr-2" />
+            <ShieldCheck size={18} className="mr-2" />
             {isFaceVerified ? 'Proceed to Cast Ballot' : 'Authenticate & Cast Ballot'}
           </Button>
         </div>

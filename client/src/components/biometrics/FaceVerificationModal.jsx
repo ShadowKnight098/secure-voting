@@ -364,25 +364,25 @@ export const FaceVerificationModal = ({ isOpen, onClose, electionId, onVerified 
     <Modal
       isOpen={isOpen}
       onClose={() => !verifying && onClose()}
-      title="Biometric Face Verification (Module 3)"
+      title="Biometric Face Verification"
     >
-      <div className="space-y-4 text-ink">
+      <div className="space-y-3.5 text-ink">
         {/* Anti-Fraud Banner */}
-        <div className="bg-lavender/60 border-2 border-ink rounded-[12px] p-3 text-xs font-semibold flex items-center justify-between shadow-neo-sm">
-          <div className="flex items-center gap-2">
-            <Lock size={16} className="text-violet flex-shrink-0" />
+        <div className="bg-lavender/60 border-2 border-ink rounded-[12px] p-2.5 sm:p-3 text-xs font-semibold flex items-center justify-between shadow-neo-sm">
+          <div className="flex items-center gap-2 min-w-0">
+            <Lock size={15} className="text-violet flex-shrink-0" />
             <span className="truncate">Anti-Fraud Biometric Identity Authentication</span>
           </div>
-          <span className="px-2.5 py-0.5 rounded-full bg-sun border border-ink text-[10px] font-black uppercase flex-shrink-0">
+          <span className="px-2 py-0.5 rounded-full bg-sun border border-ink text-[10px] font-black uppercase flex-shrink-0 ml-2">
             Live Scan
           </span>
         </div>
 
         {/* Error Alert */}
         {errorMessage && (
-          <div className="p-3.5 rounded-[12px] bg-coral/20 border-2 border-ink text-ink text-xs font-bold shadow-neo-sm flex items-center gap-2 animate-slide-up">
-            <AlertTriangle size={18} className="text-coral flex-shrink-0" />
-            <div className="flex-1">
+          <div className="p-3 sm:p-3.5 rounded-[12px] bg-coral/20 border-2 border-ink text-ink text-xs font-bold shadow-neo-sm flex items-center gap-2 animate-slide-up">
+            <AlertTriangle size={17} className="text-coral flex-shrink-0" />
+            <div className="flex-1 break-words">
               <span>{errorMessage}</span>
             </div>
           </div>
@@ -391,28 +391,28 @@ export const FaceVerificationModal = ({ isOpen, onClose, electionId, onVerified 
         {verificationResult ? (
           /* Success Screen */
           <div className="text-center py-6 px-4 space-y-4 bg-mint/30 border-2 border-ink rounded-[14px] shadow-neo-md animate-slide-up">
-            <div className="w-16 h-16 rounded-full bg-mint border-2 border-ink mx-auto flex items-center justify-center text-ink shadow-neo">
-              <CheckCircle2 size={36} />
+            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-mint border-2 border-ink mx-auto flex items-center justify-center text-ink shadow-neo">
+              <CheckCircle2 size={32} />
             </div>
 
             <div>
-              <h3 className="text-xl font-black text-ink">Identity Authenticated!</h3>
+              <h3 className="text-lg sm:text-xl font-black text-ink">Identity Authenticated!</h3>
               <p className="text-xs font-bold text-ink/80 mt-1">
                 Biometric match confirmed with {verificationResult.confidenceScore}% confidence.
               </p>
             </div>
 
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-surface border-2 border-ink rounded-full text-xs font-black shadow-neo-sm">
-              <ShieldCheck size={16} className="text-mint" />
+            <div className="inline-flex items-center gap-2 px-3.5 py-1.5 bg-surface border-2 border-ink rounded-full text-xs font-black shadow-neo-sm">
+              <ShieldCheck size={15} className="text-mint" />
               Unlocking ballot access...
             </div>
           </div>
         ) : cameraError ? (
           /* Camera Error View */
-          <div className="p-5 bg-lavender/40 border-2 border-ink rounded-[14px] text-center space-y-3">
-            <VideoOff size={32} className="mx-auto text-coral" />
-            <h4 className="font-extrabold text-sm">{cameraError}</h4>
-            <p className="text-xs font-medium text-ink/70">
+          <div className="p-4 sm:p-5 bg-lavender/40 border-2 border-ink rounded-[14px] text-center space-y-3">
+            <VideoOff size={28} className="mx-auto text-coral" />
+            <h4 className="font-extrabold text-sm text-coral">{cameraError}</h4>
+            <p className="text-xs font-medium text-ink/70 max-w-sm mx-auto">
               Live webcam access is required to authenticate your biometric identity.
             </p>
             <div className="pt-2 flex justify-center gap-3">
@@ -424,10 +424,10 @@ export const FaceVerificationModal = ({ isOpen, onClose, electionId, onVerified 
         ) : (
           /* Live Camera View */
           <div className="space-y-3">
-            <div className="relative w-full aspect-[4/3] bg-slate-900 rounded-[14px] border-2 border-ink overflow-hidden shadow-neo flex items-center justify-center">
+            <div className="relative w-full aspect-[4/3] bg-slate-900 rounded-[12px] sm:rounded-[14px] border-2 border-ink overflow-hidden shadow-neo flex items-center justify-center">
               {!modelsLoaded ? (
-                <div className="text-center p-6 text-white space-y-2">
-                  <RefreshCw size={28} className="animate-spin text-sun mx-auto" />
+                <div className="text-center p-4 text-white space-y-2">
+                  <RefreshCw size={24} className="animate-spin text-sun mx-auto" />
                   <p className="font-bold text-xs">Loading Biometric Neural Engine...</p>
                 </div>
               ) : (
@@ -444,17 +444,17 @@ export const FaceVerificationModal = ({ isOpen, onClose, electionId, onVerified 
                     className="absolute inset-0 w-full h-full pointer-events-none transform -scale-x-100"
                   />
 
-                  {/* Registered Face Photo Picture-in-Picture thumbnail */}
+                  {/* Registered Face Photo Picture-in-Picture thumbnail (Compact on mobile) */}
                   {registeredPhoto && (
-                    <div className="absolute top-3 left-3 bg-surface/95 backdrop-blur-sm border-2 border-ink rounded-[10px] p-1.5 shadow-neo-sm flex items-center gap-2 z-10">
+                    <div className="absolute top-2.5 left-2.5 bg-surface/95 backdrop-blur-sm border-2 border-ink rounded-[10px] p-1 sm:p-1.5 shadow-neo-sm flex items-center gap-1.5 z-10">
                       <img 
                         src={getImageUrl(registeredPhoto)} 
                         alt="Registered scan" 
-                        className="w-9 h-9 rounded-[6px] object-cover border border-ink"
+                        className="w-7 h-7 sm:w-9 sm:h-9 rounded-[6px] object-cover border border-ink flex-shrink-0"
                       />
-                      <div className="pr-1 text-left">
-                        <span className="text-[9px] font-black uppercase text-ink/60 block">Enrolled Face</span>
-                        <span className="text-[10px] font-extrabold text-ink block">Profile Photo</span>
+                      <div className="pr-1 text-left hidden sm:block">
+                        <span className="text-[9px] font-black uppercase text-ink/60 block leading-tight">Enrolled</span>
+                        <span className="text-[10px] font-extrabold text-ink block leading-tight">Profile Face</span>
                       </div>
                     </div>
                   )}
@@ -465,9 +465,9 @@ export const FaceVerificationModal = ({ isOpen, onClose, electionId, onVerified 
                   </div>
 
                   {/* Viewfinder Target Guide */}
-                  <div className="absolute inset-0 pointer-events-none border-4 border-dashed border-white/25 rounded-[12px] m-4 flex items-center justify-center">
+                  <div className="absolute inset-0 pointer-events-none border-4 border-dashed border-white/25 rounded-[12px] m-3 sm:m-4 flex items-center justify-center">
                     {!faceDetected && !verifying && (
-                      <div className="bg-ink/80 backdrop-blur-sm text-white px-3.5 py-1.5 rounded-[8px] text-xs font-bold border border-white/30 animate-pulse text-center">
+                      <div className="bg-ink/80 backdrop-blur-sm text-white px-3 py-1.5 rounded-[8px] text-xs font-bold border border-white/30 animate-pulse text-center">
                         Align face in viewfinder
                       </div>
                     )}
@@ -475,10 +475,10 @@ export const FaceVerificationModal = ({ isOpen, onClose, electionId, onVerified 
 
                   {/* Verifying Spinner Overlay */}
                   {verifying && (
-                    <div className="absolute inset-0 bg-ink/70 backdrop-blur-xs flex flex-col items-center justify-center text-white space-y-2 z-20 animate-fade-in">
-                      <RefreshCw size={32} className="animate-spin text-sun" />
-                      <p className="font-black text-sm text-sun">Verifying Facial Biometrics...</p>
-                      <p className="text-xs text-white/80">Comparing with enrolled cryptographic hash</p>
+                    <div className="absolute inset-0 bg-ink/70 backdrop-blur-xs flex flex-col items-center justify-center text-white space-y-2 z-20 animate-fade-in p-4 text-center">
+                      <RefreshCw size={28} className="animate-spin text-sun" />
+                      <p className="font-black text-xs sm:text-sm text-sun">Verifying Facial Biometrics...</p>
+                      <p className="text-[11px] text-white/80">Comparing with enrolled cryptographic hash</p>
                     </div>
                   )}
                 </>
@@ -486,24 +486,24 @@ export const FaceVerificationModal = ({ isOpen, onClose, electionId, onVerified 
             </div>
 
             {/* Status Indicator & Instant Scan Button */}
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-1">
-              <div className="text-xs font-bold">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2.5 pt-1">
+              <div className="text-xs font-bold text-center sm:text-left min-w-0">
                 {verifying ? (
-                  <span className="text-violet flex items-center gap-1.5 animate-pulse">
-                    <Scan size={16} /> Verifying face biometrics...
+                  <span className="text-violet flex items-center justify-center sm:justify-start gap-1.5 animate-pulse">
+                    <Scan size={15} /> Verifying face biometrics...
                   </span>
                 ) : faceDetected ? (
-                  <span className="text-mint flex items-center gap-1.5 font-extrabold">
-                    <UserCheck size={16} /> Face detected ({detectionScore}%) — Auto-scanning
+                  <span className="text-mint flex items-center justify-center sm:justify-start gap-1.5 font-extrabold truncate">
+                    <UserCheck size={15} /> Face detected ({detectionScore}%) — Auto-scanning
                   </span>
                 ) : (
-                  <span className="text-ink/70 flex items-center gap-1.5 font-medium">
-                    <Scan size={16} className="text-violet animate-pulse" /> {scanStatusText}
+                  <span className="text-ink/70 flex items-center justify-center sm:justify-start gap-1.5 font-medium truncate">
+                    <Scan size={15} className="text-violet animate-pulse" /> {scanStatusText}
                   </span>
                 )}
               </div>
 
-              <div className="flex items-center gap-2 w-full sm:w-auto">
+              <div className="w-full sm:w-auto flex-shrink-0">
                 <Button
                   type="button"
                   variant="primary"

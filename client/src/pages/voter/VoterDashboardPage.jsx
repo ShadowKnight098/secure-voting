@@ -87,23 +87,23 @@ export const VoterDashboardPage = () => {
       </header>
 
       {/* Main Content */}
-      <main className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-6 animate-fade-in">
+      <main className="max-w-6xl mx-auto px-3 sm:px-6 lg:px-8 py-5 sm:py-8 space-y-4 sm:space-y-6 animate-fade-in">
         {/* Welcome Banner */}
-        <Card className="p-6 sm:p-8 shadow-neo">
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <Card className="p-4 sm:p-8 shadow-neo">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-extrabold text-ink tracking-tight">
+              <h1 className="text-xl sm:text-3xl font-extrabold text-ink tracking-tight break-words">
                 Welcome back, {voter?.full_name} 👋
               </h1>
               <div className="flex flex-wrap items-center gap-2 mt-2">
                 <span className="text-xs font-bold text-ink/70">Your Dynamically Generated Voter ID:</span>
-                <span className="text-violet font-mono font-black text-sm bg-sun/40 px-2.5 py-1 rounded-[8px] border-2 border-ink shadow-neo-sm tracking-wider">
+                <span className="text-violet font-mono font-black text-xs sm:text-sm bg-sun/40 px-2.5 py-1 rounded-[8px] border-2 border-ink shadow-neo-sm tracking-wider break-all">
                   {voter?.voter_id_number}
                 </span>
               </div>
             </div>
 
-            <div className="flex flex-wrap items-center gap-2.5">
+            <div className="flex flex-wrap items-center gap-2 sm:gap-2.5">
               {isVerified ? (
                 <div className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-mint text-ink border-2 border-ink shadow-neo-sm text-xs font-bold">
                   <CheckCircle2 size={16} /> Verified Voter
@@ -150,11 +150,11 @@ export const VoterDashboardPage = () => {
           </div>
         )}
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5 sm:gap-6">
           {/* Left 2 Columns: Assigned Election & Voting Hub */}
-          <div className="lg:col-span-2 space-y-6">
+          <div className="lg:col-span-2 space-y-5 sm:space-y-6">
             {/* Assigned Election Card */}
-            <Card className="p-6 sm:p-8">
+            <Card className="p-4 sm:p-8">
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-3">
                   <div className="w-12 h-12 rounded-[12px] bg-violet text-white border-2 border-ink shadow-neo-sm flex items-center justify-center">
@@ -239,8 +239,8 @@ export const VoterDashboardPage = () => {
             </Card>
 
             {/* Voting System Stages Roadmap */}
-            <Card className="p-6 sm:p-8">
-              <h3 className="text-xl font-extrabold text-ink mb-6">Voting Process Roadmap</h3>
+            <Card className="p-4 sm:p-8">
+              <h3 className="text-lg sm:text-xl font-extrabold text-ink mb-4 sm:mb-6">Voting Process Roadmap</h3>
               
               <div className="space-y-4">
                 {/* Step 1: Registration */}
@@ -316,8 +316,8 @@ export const VoterDashboardPage = () => {
           </div>
 
           {/* Right Column: Voter Profile */}
-          <div className="space-y-6">
-            <Card className="p-6">
+          <div className="space-y-5 sm:space-y-6">
+            <Card className="p-4 sm:p-6">
               <div className="flex items-center gap-3 mb-6 pb-4 border-b-2 border-ink">
                 <div className="w-12 h-12 rounded-[12px] bg-violet text-white border-2 border-ink shadow-neo-sm flex items-center justify-center font-extrabold text-lg">
                   {voter?.full_name?.charAt(0).toUpperCase() || 'V'}
