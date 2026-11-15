@@ -156,6 +156,45 @@
       opacity: 0.85;
     }
   }
+
+  /* Paper Slot Loader Animation */
+  .animate-paper-slot {
+    animation: paper-slot 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+  }
+
+  @keyframes paper-slot {
+    0% {
+      transform: translateY(-38px) scaleY(0.85);
+      opacity: 0;
+    }
+    18% {
+      opacity: 1;
+      transform: translateY(-20px) scaleY(1);
+    }
+    80% {
+      opacity: 1;
+      transform: translateY(24px) scaleY(1);
+    }
+    100% {
+      transform: translateY(42px) scaleY(0.85);
+      opacity: 0;
+    }
+  }
+
+  .animate-slot-shadow {
+    animation: slot-shadow 1.4s ease-in-out infinite;
+  }
+
+  @keyframes slot-shadow {
+    0%, 100% {
+      transform: scaleX(0.8);
+      opacity: 0.3;
+    }
+    50% {
+      transform: scaleX(1.2);
+      opacity: 0.75;
+    }
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

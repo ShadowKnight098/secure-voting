@@ -17,6 +17,7 @@ import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
 import Modal from '../../components/ui/Modal';
+import VotingLoader from '../../components/ui/VotingLoader';
 import FaceVerificationModal from '../../components/biometrics/FaceVerificationModal';
 import { getImageUrl } from '../../utils/imageUrl';
 
@@ -111,11 +112,7 @@ export const VoterBallotPage = () => {
   };
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-lavender flex items-center justify-center">
-        <div className="w-14 h-14 border-4 border-ink border-t-pink rounded-full animate-spin"></div>
-      </div>
-    );
+    return <VotingLoader message="Preparing Ballot..." submessage="Validating candidates and election status" />;
   }
 
   return (

@@ -17,6 +17,7 @@ import VoterBallotPage from './pages/voter/VoterBallotPage';
 import VoteReceiptPage from './pages/voter/VoteReceiptPage';
 import ElectionResultsPage from './pages/ElectionResultsPage';
 import AppLayout from './components/layout/AppLayout';
+import VotingLoader from './components/ui/VotingLoader';
 import { useAuth } from './context/AuthContext';
 import { useVoterAuth } from './context/VoterAuthContext';
 
@@ -24,11 +25,7 @@ const AdminProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useAuth();
   
   if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-indigo-500/30 border-t-indigo-500 rounded-full animate-spin"></div>
-      </div>
-    );
+    return <VotingLoader message="Authenticating Admin..." submessage="Verifying session" />;
   }
   
   if (!isAuthenticated) {
@@ -42,11 +39,7 @@ const VoterProtectedRoute = ({ children }) => {
   const { isAuthenticated, loading } = useVoterAuth();
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-slate-950 flex items-center justify-center">
-        <div className="w-12 h-12 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin"></div>
-      </div>
-    );
+    return <VotingLoader message="Loading Voter Portal..." submessage="Verifying credentials" />;
   }
 
   if (!isAuthenticated) {

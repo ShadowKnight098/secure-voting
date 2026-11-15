@@ -17,6 +17,7 @@ import toast from 'react-hot-toast';
 import { voteService } from '../../services/voteService';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
+import VotingLoader from '../../components/ui/VotingLoader';
 
 export const VoteReceiptPage = () => {
   const { electionId } = useParams();
@@ -62,9 +63,10 @@ export const VoteReceiptPage = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-lavender flex items-center justify-center">
-        <div className="w-14 h-14 border-4 border-ink border-t-pink rounded-full animate-spin"></div>
-      </div>
+      <VotingLoader 
+        message="Retrieving Receipt..." 
+        submessage="Querying cryptographic ledger" 
+      />
     );
   }
 

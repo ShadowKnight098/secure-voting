@@ -20,6 +20,7 @@ import { useVoterAuth } from '../../context/VoterAuthContext';
 import Card from '../../components/ui/Card';
 import Button from '../../components/ui/Button';
 import Badge from '../../components/ui/Badge';
+import VotingLoader from '../../components/ui/VotingLoader';
 
 export const VoterDashboardPage = () => {
   const { voter, logout, refreshProfile, loading } = useVoterAuth();
@@ -30,11 +31,7 @@ export const VoterDashboardPage = () => {
   }, []);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-lavender flex items-center justify-center">
-        <div className="w-14 h-14 border-4 border-ink border-t-pink rounded-full animate-spin"></div>
-      </div>
-    );
+    return <VotingLoader message="Loading Voter Dashboard..." submessage="Fetching registration and election status" />;
   }
 
   const isVerified = voter?.is_verified === 1 || voter?.is_verified === true;
